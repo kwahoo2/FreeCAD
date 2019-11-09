@@ -83,6 +83,10 @@ if(BUILD_VR)
     find_package(Rift)
 endif(BUILD_VR)
 
+if(BUILD_OPENVR)
+    find_package(OpenVR)
+endif(BUILD_OPENVR)
+
 SetLibraryVersions()
 SetGlobalCompilerAndLinkerSettings()
 

@@ -1706,7 +1706,32 @@ bool StdCmdViewVR::isActive(void)
    return getGuiApplication()->sendHasMsgToActiveView("ViewVR");
 }
 
+//===========================================================================
+// Std_ViewOpenVR
+//===========================================================================
+DEF_STD_CMD_A(StdCmdViewOpenVR)
 
+StdCmdViewOpenVR::StdCmdViewOpenVR()
+  : Command("Std_ViewOpenVR")
+{
+    sGroup        = QT_TR_NOOP("Standard-View");
+    sMenuText     = QT_TR_NOOP("FreeCAD-OpenVR");
+    sToolTipText  = QT_TR_NOOP("Extend the FreeCAD 3D Window to an OpenVR headset");
+    sWhatsThis    = "Std_ViewOpenVR";
+    sStatusTip    = QT_TR_NOOP("Extend the FreeCAD 3D Window to an OpenVR headset");
+    eType         = Alter3DView;
+}
+
+void StdCmdViewOpenVR::activated(int iMsg)
+{
+    Q_UNUSED(iMsg);
+   doCommand(Command::Gui,"Gui.SendMsgToActiveView(\"ViewOpenVR\")");
+}
+
+bool StdCmdViewOpenVR::isActive(void)
+{
+   return getGuiApplication()->sendHasMsgToActiveView("ViewOpenVR");
+}
 
 //===========================================================================
 // Std_ViewScreenShot
@@ -3475,6 +3500,7 @@ void CreateViewStdCommands(void)
     rcCmdMgr.addCommand(new StdCmdViewTrimetric());
     rcCmdMgr.addCommand(new StdCmdViewFitAll());
     rcCmdMgr.addCommand(new StdCmdViewVR());
+    rcCmdMgr.addCommand(new StdCmdViewOpenVR());
     rcCmdMgr.addCommand(new StdCmdViewFitSelection());
     rcCmdMgr.addCommand(new StdCmdViewRotateLeft());
     rcCmdMgr.addCommand(new StdCmdViewRotateRight());

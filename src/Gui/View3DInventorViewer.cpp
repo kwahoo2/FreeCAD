@@ -119,6 +119,7 @@
 #include "SoFCBoundingBox.h"
 #include "SoAxisCrossKit.h"
 #include "View3DInventorRiftViewer.h"
+#include "View3DInventorOpenVRViewer.h"
 
 #include "Selection.h"
 #include "SoFCSelectionAction.h"
@@ -2906,6 +2907,27 @@ void View3DInventorViewer::viewVR(void)
     }
 #endif
 }
+
+#if BUILD_OPENVR
+extern View3DInventorOpenVRViewer* openvrStart(void);
+extern bool openvrUp   (void);
+extern void openvrStop (void);
+#endif
+
+void View3DInventorViewer::viewOpenVR(void)
+{
+#if BUILD_OPENVR
+
+    if (openvrUp()) {
+        openvrStop();
+    }
+    else {
+        View3DInventorOpenVRViewer* openvrWin = openvrStart();
+        openvrWin->setSceneGraph(pcViewProviderRoot);
+    }
+#endif
+}
+
 
 void View3DInventorViewer::boxZoom(const SbBox2s& box)
 {

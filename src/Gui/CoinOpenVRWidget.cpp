@@ -1,0 +1,298 @@
+/**************************************************************************\
+* Copyright (c) 2019 Adrian Przekwas <adrian.v.przekwas@gmail.com>	   *
+* Copyright (c) Bastiaan Veelo (Bastiaan a_t Veelo d_o_t net) & Juergen Riegel (FreeCAD@juergen-riegel.net)
+* All rights reserved. Contact me if the below is too restrictive for you.
+*
+* Redistribution and use in source and binary forms, with or without
+* modification, are permitted provided that the following conditions are
+* met:
+*
+* Redistributions of source code must retain the above copyright notice,
+* this list of conditions and the following disclaimer.
+*
+* Redistributions in binary form must reproduce the above copyright
+* notice, this list of conditions and the following disclaimer in the
+* documentation and/or other materials provided with the distribution.
+*
+* Neither the name of the copyright holder nor the names of its
+* contributors may be used to endorse or promote products derived from
+* this software without specific prior written permission.
+*
+* THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+* "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+* LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+* A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+* HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+* SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+* LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+* DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+* THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+* (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+* OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+\**************************************************************************/
+
+#include "PreCompiled.h"
+
+
+#include "CoinOpenVRWidget.h"
+
+#include <Base/Console.h>
+
+#include <Inventor/nodes/SoBaseColor.h>
+#include <Inventor/nodes/SoCone.h> //test Cone
+
+#if BUILD_OPENVR
+
+#undef max
+
+CoinOpenVRWidget::CoinOpenVRWidget() : QOpenGLWidget()
+{
+    eyes[0] = vr::Eye_Left;
+    eyes[1] = vr::Eye_Right;
+    for (int eye = 0; eye < 2; eye++) {
+        frameBufferID[eye] = 0;
+        depthBufferID[eye] = 0;
+
+    }
+    // Loading the SteamVR Runtime
+    vr::EVRInitError eError = vr::VRInitError_None;
+    m_pHMD = vr::VR_Init( &eError, vr::VRApplication_Scene );
+
+    if (eError != vr::VRInitError_None){
+        m_pHMD = nullptr;
+        qDebug() << "Unable to init VR runtime:" << vr::VR_GetVRInitErrorAsEnglishDescription( eError );
+        throw;
+    }
+    // Configure stereo settings.
+    m_pHMD->GetRecommendedRenderTargetSize( &m_nRenderWidth, &m_nRenderHeight );
+    resize(static_cast<int>(m_nRenderWidth), static_cast<int>(m_nRenderHeight));
+
+    m_sceneManager = new SoSceneManager();
+    m_sceneManager->setViewportRegion(SbViewportRegion(static_cast<short>(m_nRenderWidth), static_cast<short>(m_nRenderHeight)));
+    m_sceneManager->setBackgroundColor(SbColor(.0f, .0f, .8f));
+
+    basePosition = SbVec3f(0.0f, 0.0f, 2.0f);
+    // light handling
+    SoDirectionalLight *light = new SoDirectionalLight();
+    light->direction.setValue(1,-1,-1);
+
+    SoDirectionalLight *light2 = new SoDirectionalLight();
+    light2->direction.setValue(-1,-1,-1);
+    light2->intensity.setValue(0.6f);
+    light2->color.setValue(0.8f,0.8f,1.0f);
+    scene = new SoSeparator(0); // Placeholder.
+
+    for (int eye = 0; eye < 2; eye++) {
+        frameBufferID[eye] = 0;
+        depthBufferID[eye] = 0;
+    }
+
+    for (int eye = 0; eye < 2; eye++) {
+        eyehead[eye] = m_pHMD->GetEyeToHeadTransform(eyes[eye]);
+        camtrans[eye] = new SoTranslation();
+        camtrans[eye]->translation.setValue(eyehead->m[0][3], 0, 0); //0 3 is eye to center
+        rootScene[eye] = new SoSeparator();
+        cgrp[eye] = new SoGroup();
+        sgrp[eye] = new SoGroup();
+        rootScene[eye]->ref();
+        camera[eye] = new SoFrustumCamera();
+        camera[eye]->position.setValue(basePosition);
+        camera[eye]->focalDistance.setValue(5.0f);
+        camera[eye]->viewportMapping.setValue(SoCamera::LEAVE_ALONE);
+
+        rootScene[eye]->addChild(cgrp[eye]);
+        rootScene[eye]->addChild(camtrans[eye]);
+        rootScene[eye]->addChild(camera[eye]);
+        rootScene[eye]->addChild(sgrp[eye]);
+        rootScene[eye]->addChild(light);
+        rootScene[eye]->addChild(light2);
+        rootScene[eye]->addChild(scene);
+    }
+
+    static const float nearPlane = 0.01f;
+    static const float farPlane = 10000.0f;
+
+    for (int eye = 0; eye < 2; eye++) {
+        float pfLeft, pfRight, pfTop, pfBottom;
+        m_pHMD->GetProjectionRaw(eyes[eye], &pfLeft, &pfRight, &pfBottom, &pfTop); //top and bottom are reversed
+        camera[eye]->aspectRatio.setValue((pfTop - pfBottom)/(pfRight - pfLeft));
+        camera[eye]->nearDistance.setValue(nearPlane);
+        camera[eye]->farDistance.setValue(farPlane);
+        camera[eye]->left.setValue(nearPlane * pfLeft);
+        camera[eye]->right.setValue(nearPlane * pfRight);
+        camera[eye]->top.setValue(nearPlane * pfTop);
+        camera[eye]->bottom.setValue(nearPlane * pfBottom);
+    }
+}
+
+
+CoinOpenVRWidget::~CoinOpenVRWidget()
+{
+    makeCurrent();
+    for (int eye = 0; eye < 2; eye++) {
+            rootScene[eye]->unref();
+            if (frameBufferID[eye] != 0) {
+                glDeleteFramebuffers(1, &frameBufferID[eye]);
+                frameBufferID[eye] = 0;
+            }
+            if (depthBufferID[eye] != 0) {
+                glDeleteRenderbuffers(1, &depthBufferID[eye]);
+                depthBufferID[eye] = 0;
+            }
+        }
+    scene = nullptr;
+    if(m_pHMD){
+        vr::VR_Shutdown();
+        m_pHMD = nullptr;
+    }
+
+    doneCurrent();
+}
+
+void CoinOpenVRWidget::setBackgroundColor(const SbColor &Col)
+{
+    BackgroundColor = Col;
+}
+
+void CoinOpenVRWidget::setSceneGraph(SoNode *sceneGraph)
+{
+    rootScene[0]->replaceChild(scene, sceneGraph);
+    rootScene[1]->replaceChild(scene, sceneGraph);
+    scene = sceneGraph;
+}
+
+void CoinOpenVRWidget::resizeGL(int width, int height)
+{
+    int side = qMin(width, height);
+    glViewport((width - side) / 2, (height - side) / 2, side, side);
+
+    glMatrixMode(GL_PROJECTION);
+    glLoadIdentity();
+    glOrtho(-1.0, 1.0, -1.0, 1.0, 0.0, 1000.0);
+    glMatrixMode(GL_MODELVIEW);
+}
+
+void CoinOpenVRWidget::initializeGL()
+{
+        initializeOpenGLFunctions();
+        // Store old framebuffer.
+        GLint oldfb;
+        glGetIntegerv(GL_FRAMEBUFFER_BINDING_EXT, &oldfb);
+        // Create rendering target textures.
+        glEnable(GL_TEXTURE_2D);
+        for (int eye = 0; eye < 2; eye++) {
+            glGenFramebuffers(1, &frameBufferID[eye]);
+            glBindFramebuffer(GL_FRAMEBUFFER_EXT, frameBufferID[eye]);
+            // Create the render buffer.
+            glGenRenderbuffers(1, &depthBufferID[eye]);
+            glBindRenderbuffer(GL_RENDERBUFFER_EXT, depthBufferID[eye]);
+            glRenderbufferStorage(GL_RENDERBUFFER_EXT,
+                                  GL_DEPTH24_STENCIL8,
+                                  static_cast<GLsizei>(m_nRenderWidth),
+                                  static_cast<GLsizei>(m_nRenderHeight));
+            // Attach renderbuffer to framebuffer.
+            glFramebufferRenderbuffer(GL_FRAMEBUFFER_EXT,
+                                      GL_DEPTH_STENCIL_ATTACHMENT,
+                                      GL_RENDERBUFFER_EXT,
+                                      depthBufferID[eye]);
+            glGenTextures(1, &texture_ids[eye] );
+            glBindTexture( GL_TEXTURE_2D, texture_ids[eye] );
+            Q_ASSERT(!glGetError());
+            // Allocate storage for the texture.
+            glTexImage2D(
+              GL_TEXTURE_2D, 0, GL_RGBA8,static_cast<GLsizei>(m_nRenderWidth), static_cast<GLsizei>(m_nRenderHeight), 0, GL_RGBA, GL_UNSIGNED_BYTE,
+              nullptr);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+            Q_ASSERT(!glGetError());
+            // Attach texture to framebuffer color object.
+            glFramebufferTexture2D(
+              GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D,
+              texture_ids[eye], 0);
+            if (glCheckFramebufferStatus(GL_FRAMEBUFFER) !=
+                    GL_FRAMEBUFFER_COMPLETE)
+                qDebug() << "ERROR: FrameBuffer is not operational!";
+        }
+        glBindTexture(GL_TEXTURE_2D, 0);
+        glDisable(GL_TEXTURE_2D);
+        glBindFramebuffer(GL_FRAMEBUFFER_EXT, static_cast<GLuint>(oldfb));
+        doneCurrent();
+
+
+}
+
+void CoinOpenVRWidget::paintGL()
+{
+    const int ms(1000 / 144 /*fps*/);
+    QTimer::singleShot(ms, this, SLOT(updateGL()));
+
+    if ( !m_pHMD )
+        return;
+
+    makeCurrent();
+
+    glEnable(GL_TEXTURE_2D);
+
+    vr::VRCompositor()->WaitGetPoses(m_rTrackedDevicePose, vr::k_unMaxTrackedDeviceCount, nullptr, 0 );
+
+
+    if ( m_rTrackedDevicePose[vr::k_unTrackedDeviceIndex_Hmd].bPoseIsValid )
+    {
+        vr::TrackedDevicePose_t headPose = m_rTrackedDevicePose[vr::k_unTrackedDeviceIndex_Hmd];
+        headToWorld = headPose.mDeviceToAbsoluteTracking;
+    }
+
+    SbRotation hmdrot = extractrotation(headToWorld);
+    SbVec3f hmdpos = extracttranslation(headToWorld);
+
+    for (int eye = 0; eye < 2; eye++) {
+        camera[eye]->orientation.setValue(hmdrot);
+        camera[eye]->position.setValue(basePosition + hmdpos);
+        // Clear state pollution from OpenVR SDK.
+        glBindTexture(GL_TEXTURE_2D, 0);
+        glUseProgram(0);
+        GLint oldfb;
+        glGetIntegerv(GL_FRAMEBUFFER_BINDING_EXT, &oldfb);
+        // Set up framebuffer for rendering.
+        glBindFramebuffer(GL_FRAMEBUFFER_EXT, frameBufferID[eye]);
+        m_sceneManager->setSceneGraph(rootScene[eye]);
+        glEnable(GL_CULL_FACE);
+        glEnable(GL_DEPTH_TEST);
+        m_sceneManager->render();
+        glDisable(GL_CULL_FACE);
+        glDisable(GL_DEPTH_TEST);
+        glClearDepth(1.0);
+
+        textures[eye] = { reinterpret_cast<void*>(texture_ids[eye]), vr::TextureType_OpenGL, vr::ColorSpace_Gamma };
+        // Continue rendering to the original frame buffer (likely 0, the onscreen buffer).
+        glBindFramebuffer(GL_FRAMEBUFFER_EXT, static_cast<GLuint>(oldfb));
+        Q_ASSERT(!glGetError());
+    }
+    update(); //schedule QOpenGL composition
+    //submit textures to compositor
+    vr::VRCompositor()->Submit(vr::Eye_Left, &textures[0] );
+    vr::VRCompositor()->Submit(vr::Eye_Right, &textures[1] );
+    doneCurrent();
+
+}
+
+SbRotation CoinOpenVRWidget::extractrotation(vr::HmdMatrix34_t tmat)
+{
+    float qw = sqrt(fmax(0.0f, 1.0f + tmat.m[0][0] + tmat.m[1][1] + tmat.m[2][2])) / 2.0f;
+    float qx = sqrt(fmax(0.0f, 1.0f + tmat.m[0][0] - tmat.m[1][1] - tmat.m[2][2])) / 2.0f;
+    float qy = sqrt(fmax(0.0f, 1.0f - tmat.m[0][0] + tmat.m[1][1] - tmat.m[2][2])) / 2.0f;
+    float qz = sqrt(fmax(0.0f, 1.0f - tmat.m[0][0] - tmat.m[1][1] + tmat.m[2][2])) / 2.0f;
+    qx = copysign(qx, tmat.m[2][1] - tmat.m[1][2]);
+    qy = copysign(qy, tmat.m[0][2] - tmat.m[2][0]);
+    qz = copysign(qz, tmat.m[1][0] - tmat.m[0][1]);
+    SbRotation hmdrot = SbRotation(qx, qy, qz, qw);
+    return hmdrot;
+}
+
+SbVec3f CoinOpenVRWidget::extracttranslation(vr::HmdMatrix34_t tmat)
+{
+    SbVec3f hmdpos = SbVec3f(tmat.m[0][3], tmat.m[1][3], tmat.m[2][3]);
+    return hmdpos;
+}
+
+#endif //BUILD_OPENVR
