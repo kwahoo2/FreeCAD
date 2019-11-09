@@ -608,6 +608,11 @@ bool View3DInventor::onMsg(const char* pMsg, const char** ppReturn)
         _viewer->viewVR();
         return true;
     }
+    else if (strcmp("ViewOpenVR",pMsg) == 0) {
+        // call the VR portion of the viewer
+        _viewer->viewOpenVR();
+        return true;
+    }
     else if(strcmp("ViewSelection",pMsg) == 0) {
         syncBoundViews(pMsg);
         return true;
@@ -748,6 +753,12 @@ bool View3DInventor::onHasMsg(const char* pMsg) const
         return true;
     else if(strcmp("ViewVR",pMsg) == 0)
 #ifdef BUILD_VR
+        return true;
+#else
+        return false;
+#endif
+    else if(strcmp("ViewOpenVR",pMsg) == 0)
+#ifdef BUILD_OPENVR
         return true;
 #else
         return false;
