@@ -87,6 +87,16 @@ CoinOpenVRWidget::CoinOpenVRWidget() : QOpenGLWidget()
         depthBufferID[eye] = 0;
     }
 
+    for (int id = 0; id < 2; id++) { //drawing controllers gizmos
+        contrans[id] = new SoTranslation();
+        conrotat[id] = new SoRotation();
+        contrans[id]->translation.setValue(0, 0, 0);
+        conrotat[id]->rotation.setValue(0, 0, 0, 0);
+        conGizmo[id] = new SoCone();
+        conGizmo[id]->bottomRadius.setValue(100);
+        conGizmo[id]->height.setValue(300);
+
+    }
     for (int eye = 0; eye < 2; eye++) {
         eyehead[eye] = m_pHMD->GetEyeToHeadTransform(eyes[eye]);
         camtrans[eye] = new SoTranslation();
@@ -101,12 +111,26 @@ CoinOpenVRWidget::CoinOpenVRWidget() : QOpenGLWidget()
         camera[eye]->viewportMapping.setValue(SoCamera::LEAVE_ALONE);
 
         rootScene[eye]->addChild(cgrp[eye]);
-        rootScene[eye]->addChild(camtrans[eye]);
-        rootScene[eye]->addChild(camera[eye]);
+        cgrp[eye]->addChild(camtrans[eye]);
+        cgrp[eye]->addChild(camera[eye]);
         rootScene[eye]->addChild(sgrp[eye]);
-        rootScene[eye]->addChild(light);
-        rootScene[eye]->addChild(light2);
-        rootScene[eye]->addChild(scene);
+        sgrp[eye]->addChild(light);
+        sgrp[eye]->addChild(light2);
+        //add scene
+        sgrp[eye]->addChild(scene);
+
+        //controllers
+        con0sep[eye] = new SoSeparator();
+        con1sep[eye] = new SoSeparator();
+        rootScene[eye]->addChild(con0sep[eye]);
+        con0sep[eye]->addChild(contrans[0]);
+        con0sep[eye]->addChild(conrotat[0]);
+        con0sep[eye]->addChild(conGizmo[0]);
+        rootScene[eye]->addChild(con1sep[eye]);
+        con1sep[eye]->addChild(contrans[1]);
+        con1sep[eye]->addChild(conrotat[1]);
+        con1sep[eye]->addChild(conGizmo[1]);
+
     }
 
     static const float nearPlane = 0.01f;
@@ -156,8 +180,8 @@ void CoinOpenVRWidget::setBackgroundColor(const SbColor &Col)
 
 void CoinOpenVRWidget::setSceneGraph(SoNode *sceneGraph)
 {
-    rootScene[0]->replaceChild(scene, sceneGraph);
-    rootScene[1]->replaceChild(scene, sceneGraph);
+    sgrp[0]->replaceChild(scene, sceneGraph);
+    sgrp[1]->replaceChild(scene, sceneGraph);
     scene = sceneGraph;
 }
 
@@ -233,8 +257,8 @@ void CoinOpenVRWidget::paintGL()
 
     glEnable(GL_TEXTURE_2D);
 
+    //getting HMD position
     vr::VRCompositor()->WaitGetPoses(m_rTrackedDevicePose, vr::k_unMaxTrackedDeviceCount, nullptr, 0 );
-
 
     if ( m_rTrackedDevicePose[vr::k_unTrackedDeviceIndex_Hmd].bPoseIsValid )
     {
@@ -242,8 +266,33 @@ void CoinOpenVRWidget::paintGL()
         headToWorld = headPose.mDeviceToAbsoluteTracking;
     }
 
-    SbRotation hmdrot = extractrotation(headToWorld);
-    SbVec3f hmdpos = extracttranslation(headToWorld);
+    SbRotation hmdrot = extractRotation(headToWorld);
+    SbVec3f hmdpos = extractTranslation(headToWorld);
+
+
+    //Searching for controllers
+    int ccnt = -1;
+    //Base::Console().Warning("Tracket devices count: %d \n",vr::k_unMaxTrackedDeviceCount);
+    for (unsigned int id = 0; id < vr::k_unMaxTrackedDeviceCount; id++)  {
+        vr::ETrackedDeviceClass trackedDeviceClass = m_pHMD->GetTrackedDeviceClass(id);
+        if (trackedDeviceClass != vr::ETrackedDeviceClass::TrackedDeviceClass_Controller || !m_pHMD->IsTrackedDeviceConnected(id))
+            continue;
+
+        vr::TrackedDevicePose_t trackedDevicePose;
+        vr::VRControllerState_t controllerState;
+        m_pHMD->GetControllerStateWithPose(vr::TrackingUniverseStanding, id, &controllerState, sizeof(controllerState), &trackedDevicePose);
+        ccnt++;
+
+        vr::HmdMatrix34_t controllerPos;
+        //Base::Console().Warning("Controller id: %d \n",id);
+        if (ccnt < 2) { // Only first 2 controllers
+            controllerPos = trackedDevicePose.mDeviceToAbsoluteTracking;
+            SbRotation conrot = extractRotation(controllerPos);
+            SbVec3f conpos = extractTranslation(controllerPos);
+            contrans[ccnt]->translation.setValue(conpos*1000); //m to mm conversion, this could be avoided by reorganizing scenegraph
+            conrotat[ccnt]->rotation.setValue(conrot);
+        }
+    }
 
     for (int eye = 0; eye < 2; eye++) {
         camera[eye]->orientation.setValue(hmdrot);
@@ -272,11 +321,13 @@ void CoinOpenVRWidget::paintGL()
     //submit textures to compositor
     vr::VRCompositor()->Submit(vr::Eye_Left, &textures[0] );
     vr::VRCompositor()->Submit(vr::Eye_Right, &textures[1] );
+
+
     doneCurrent();
 
 }
 
-SbRotation CoinOpenVRWidget::extractrotation(vr::HmdMatrix34_t tmat)
+SbRotation CoinOpenVRWidget::extractRotation(vr::HmdMatrix34_t tmat)
 {
     float qw = sqrt(fmax(0.0f, 1.0f + tmat.m[0][0] + tmat.m[1][1] + tmat.m[2][2])) / 2.0f;
     float qx = sqrt(fmax(0.0f, 1.0f + tmat.m[0][0] - tmat.m[1][1] - tmat.m[2][2])) / 2.0f;
@@ -289,10 +340,12 @@ SbRotation CoinOpenVRWidget::extractrotation(vr::HmdMatrix34_t tmat)
     return hmdrot;
 }
 
-SbVec3f CoinOpenVRWidget::extracttranslation(vr::HmdMatrix34_t tmat)
+SbVec3f CoinOpenVRWidget::extractTranslation(vr::HmdMatrix34_t tmat)
 {
     SbVec3f hmdpos = SbVec3f(tmat.m[0][3], tmat.m[1][3], tmat.m[2][3]);
     return hmdpos;
 }
+
+
 
 #endif //BUILD_OPENVR
