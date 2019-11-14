@@ -50,8 +50,10 @@
 #include <Inventor/nodes/SoFrustumCamera.h>
 #include <Inventor/nodes/SoDirectionalLight.h>
 #include <Inventor/nodes/SoRotationXYZ.h>
+#include <Inventor/nodes/SoRotation.h>
 #include <Inventor/nodes/SoTranslation.h>
 #include <Inventor/nodes/SoScale.h>
+#include <Inventor/nodes/SoCone.h>
 
 #include <openvr/openvr.h>
 #include <QOpenGLFunctions_3_3_Core> //for glGenFramebuffers
@@ -73,6 +75,11 @@ class CoinOpenVRWidget : public QOpenGLWidget , protected QOpenGLFunctions_3_3_C
     SoTranslation *camtrans[2];
     SoGroup *cgrp[2];
     SoGroup *sgrp[2];
+    SoSeparator *con0sep[2];
+    SoSeparator *con1sep[2];
+    SoCone *conGizmo[2];
+    SoTranslation *contrans[2];
+    SoRotation *conrotat[2];
 
     GLuint frameBufferID[2], depthBufferID[2];
     vr::IVRSystem *m_pHMD;
@@ -85,8 +92,8 @@ class CoinOpenVRWidget : public QOpenGLWidget , protected QOpenGLFunctions_3_3_C
     GLuint texture_ids[2];
     vr::HmdMatrix34_t headToWorld;
 
-    SbRotation extractrotation(vr::HmdMatrix34_t tmat);
-    SbVec3f extracttranslation(vr::HmdMatrix34_t tmat);
+    SbRotation extractRotation(vr::HmdMatrix34_t tmat);
+    SbVec3f extractTranslation(vr::HmdMatrix34_t tmat);
 
 public:
     explicit CoinOpenVRWidget();
