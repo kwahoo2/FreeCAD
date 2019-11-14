@@ -52,6 +52,7 @@ View3DInventorOpenVRViewer::View3DInventorOpenVRViewer() : CoinOpenVRWidget()
 
     scale        = new SoScale         ;
     scale->scaleFactor.setValue(0.001f,0.001f,0.001f); // scale from mm to m as needed by the HMD
+    //scale->scaleFactor.setValue(1.0f,1.0f,1.0f);
     workplace->addChild(scale);
 
     setBackgroundColor(SbColor(51,51,101));
