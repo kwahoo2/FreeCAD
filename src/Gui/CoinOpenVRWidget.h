@@ -85,6 +85,8 @@ class CoinOpenVRWidget : public QOpenGLWidget , protected QOpenGLFunctions_3_3_C
     vr::IVRSystem *m_pHMD;
     uint32_t m_nRenderWidth;
     uint32_t m_nRenderHeight;
+    uint32_t m_nScreenWidth;
+    uint32_t m_nScreenHeight;
     vr::Texture_t textures[2];
     vr::Hmd_Eye eyes[2];
     vr::HmdMatrix34_t eyehead[2];
