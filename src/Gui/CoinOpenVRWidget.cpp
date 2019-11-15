@@ -64,8 +64,11 @@ CoinOpenVRWidget::CoinOpenVRWidget() : QOpenGLWidget()
         throw;
     }
     // Configure stereo settings.
+    uint32_t flatScale = 2;
     m_pHMD->GetRecommendedRenderTargetSize( &m_nRenderWidth, &m_nRenderHeight );
-    resize(static_cast<int>(m_nRenderWidth), static_cast<int>(m_nRenderHeight));
+    m_nScreenWidth = m_nRenderWidth / flatScale;
+    m_nScreenHeight = m_nRenderHeight / flatScale;
+    resize(static_cast<int>(m_nScreenWidth), static_cast<int>(m_nScreenHeight));
 
     m_sceneManager = new SoSceneManager();
     m_sceneManager->setViewportRegion(SbViewportRegion(static_cast<short>(m_nRenderWidth), static_cast<short>(m_nRenderHeight)));
@@ -313,6 +316,15 @@ void CoinOpenVRWidget::paintGL()
         glClearDepth(1.0);
 
         textures[eye] = { reinterpret_cast<void*>(texture_ids[eye]), vr::TextureType_OpenGL, vr::ColorSpace_Gamma };
+
+        if (eye == 0){
+            //copy to screen
+            glBindFramebuffer(GL_DRAW_FRAMEBUFFER, static_cast<GLuint>(oldfb));
+            glBlitFramebuffer(
+            0, 0, static_cast<int>(m_nRenderWidth), static_cast<int>(m_nRenderHeight),
+            0, 0, static_cast<int>(m_nScreenWidth), static_cast<int>(m_nScreenHeight),
+            GL_COLOR_BUFFER_BIT, GL_NEAREST);
+        }
         // Continue rendering to the original frame buffer (likely 0, the onscreen buffer).
         glBindFramebuffer(GL_FRAMEBUFFER_EXT, static_cast<GLuint>(oldfb));
         Q_ASSERT(!glGetError());
