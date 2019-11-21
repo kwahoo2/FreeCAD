@@ -39,7 +39,7 @@ View3DInventorOpenVRViewer::View3DInventorOpenVRViewer() : CoinOpenVRWidget()
     //translation->translation.setValue(0,-1,0);
     //workplace->addChild(translation);
 
-    rotation1     = new SoRotationXYZ   ;
+   /* rotation1     = new SoRotationXYZ   ;
     rotation1->axis.setValue(SoRotationXYZ::X);
     rotation1->angle.setValue(0);
     workplace->addChild(rotation1);
@@ -47,7 +47,7 @@ View3DInventorOpenVRViewer::View3DInventorOpenVRViewer() : CoinOpenVRWidget()
     rotation2     = new SoRotationXYZ   ;
     rotation2->axis.setValue(SoRotationXYZ::Z);
     rotation2->angle.setValue(0);
-    workplace->addChild(rotation2);
+    workplace->addChild(rotation2);*/
 
 
     scale        = new SoScale         ;
