@@ -250,8 +250,12 @@ void CoinOpenVRWidget::initializeGL()
 
 void CoinOpenVRWidget::paintGL()
 {
-    const int ms(1000 / 144 /*fps*/);
-    QTimer::singleShot(ms, this, SLOT(updateGL()));
+    QElapsedTimer etimer; //measure time of frame
+    etimer.start();
+
+    //const int ms(1000 / 144 /*fps*/);
+    //QTimer::singleShot(ms, this, SLOT(updateGL()));
+    QTimer::singleShot(0, this, SLOT(updateGL())); // A QTimer with a timeout interval of 0 will time out as soon as all the events in the window system's event queue have been processed.
 
     if ( !m_pHMD )
         return;
@@ -337,6 +341,12 @@ void CoinOpenVRWidget::paintGL()
 
     doneCurrent();
 
+    qint64 et = etimer.nsecsElapsed();
+    if (et > 0)
+    {
+        qint64 frt = 1000000000 / et;
+        this->setWindowTitle(QString::fromStdString("FreeCAD OpenVR - Framerate: ") + QString::number(frt) + QString::fromStdString(" FPS"));
+    }
 }
 
 SbRotation CoinOpenVRWidget::extractRotation(vr::HmdMatrix34_t tmat)
