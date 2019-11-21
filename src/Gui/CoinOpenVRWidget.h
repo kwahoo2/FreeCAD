@@ -40,6 +40,7 @@
 #include <QApplication>
 #include <QOpenGLWidget>
 #include <QTimer>
+#include <QElapsedTimer>
 #include <QDebug>
 #include <Inventor/SoDB.h>
 #include <Inventor/SoInput.h>
