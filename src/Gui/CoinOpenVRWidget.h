@@ -55,6 +55,8 @@
 #include <Inventor/nodes/SoTranslation.h>
 #include <Inventor/nodes/SoScale.h>
 #include <Inventor/nodes/SoCone.h>
+#include <Inventor/nodes/SoCylinder.h>
+#include <Inventor/nodes/SoTransform.h>
 
 #include <openvr/openvr.h>
 #include <QOpenGLFunctions_3_3_Core> //for glGenFramebuffers
@@ -81,6 +83,9 @@ class CoinOpenVRWidget : public QOpenGLWidget , protected QOpenGLFunctions_3_3_C
     SoCone *conGizmo[2];
     SoTranslation *contrans[2];
     SoRotation *conrotat[2];
+    SoCylinder *conStick[2];
+    SoRotation *stickrotat[2];
+    SoTransform *worldtransform;
 
     GLuint frameBufferID[2], depthBufferID[2];
     vr::IVRSystem *m_pHMD;
@@ -94,6 +99,7 @@ class CoinOpenVRWidget : public QOpenGLWidget , protected QOpenGLFunctions_3_3_C
     vr::TrackedDevicePose_t m_rTrackedDevicePose[ vr::k_unMaxTrackedDeviceCount ];
     GLuint texture_ids[2];
     vr::HmdMatrix34_t headToWorld;
+    float_t movspeed;
 
     SbRotation extractRotation(vr::HmdMatrix34_t tmat);
     SbVec3f extractTranslation(vr::HmdMatrix34_t tmat);
