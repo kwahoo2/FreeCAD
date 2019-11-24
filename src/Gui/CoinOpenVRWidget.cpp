@@ -47,6 +47,8 @@
 
 CoinOpenVRWidget::CoinOpenVRWidget() : QOpenGLWidget()
 {
+    movspeed = 0.0f; //speed of movement when analog input (stick, trackpad) is used
+
     eyes[0] = vr::Eye_Left;
     eyes[1] = vr::Eye_Right;
     for (int eye = 0; eye < 2; eye++) {
@@ -96,10 +98,18 @@ CoinOpenVRWidget::CoinOpenVRWidget() : QOpenGLWidget()
         contrans[id]->translation.setValue(0, 0, 0);
         conrotat[id]->rotation.setValue(0, 0, 0, 0);
         conGizmo[id] = new SoCone();
-        conGizmo[id]->bottomRadius.setValue(100);
-        conGizmo[id]->height.setValue(300);
+        conGizmo[id]->bottomRadius.setValue(0.1f);
+        conGizmo[id]->height.setValue(0.05f);
+        conStick[id] = new SoCylinder();
+        stickrotat[id] = new SoRotation();
+        stickrotat[id]->rotation.setValue(0, 0, 0, 0);
+        conStick[id]->radius.setValue(0.03f);
+        conStick[id]->height.setValue(0.1f);
+
 
     }
+    worldtransform = new SoTransform(); //use for navigation in the world
+
     for (int eye = 0; eye < 2; eye++) {
         eyehead[eye] = m_pHMD->GetEyeToHeadTransform(eyes[eye]);
         camtrans[eye] = new SoTranslation();
@@ -119,20 +129,27 @@ CoinOpenVRWidget::CoinOpenVRWidget() : QOpenGLWidget()
         rootScene[eye]->addChild(sgrp[eye]);
         sgrp[eye]->addChild(light);
         sgrp[eye]->addChild(light2);
-        //add scene
-        sgrp[eye]->addChild(scene);
 
         //controllers
         con0sep[eye] = new SoSeparator();
         con1sep[eye] = new SoSeparator();
-        rootScene[eye]->addChild(con0sep[eye]);
+        sgrp[eye]->addChild(con0sep[eye]);
         con0sep[eye]->addChild(contrans[0]);
         con0sep[eye]->addChild(conrotat[0]);
         con0sep[eye]->addChild(conGizmo[0]);
-        rootScene[eye]->addChild(con1sep[eye]);
+        con0sep[eye]->addChild(stickrotat[0]);
+        con0sep[eye]->addChild(conStick[0]);
+        sgrp[eye]->addChild(con1sep[eye]);
         con1sep[eye]->addChild(contrans[1]);
         con1sep[eye]->addChild(conrotat[1]);
         con1sep[eye]->addChild(conGizmo[1]);
+        con1sep[eye]->addChild(stickrotat[1]);
+        con1sep[eye]->addChild(conStick[1]);
+
+        //add scene
+        sgrp[eye]->addChild(worldtransform);
+        sgrp[eye]->addChild(scene);
+
 
     }
 
@@ -276,7 +293,6 @@ void CoinOpenVRWidget::paintGL()
     SbRotation hmdrot = extractRotation(headToWorld);
     SbVec3f hmdpos = extractTranslation(headToWorld);
 
-
     //Searching for controllers
     int ccnt = -1;
     //Base::Console().Warning("Tracket devices count: %d \n",vr::k_unMaxTrackedDeviceCount);
@@ -292,12 +308,43 @@ void CoinOpenVRWidget::paintGL()
 
         vr::HmdMatrix34_t controllerPos;
         //Base::Console().Warning("Controller id: %d \n",id);
-        if (ccnt < 2) { // Only first 2 controllers
+        if (ccnt !=-1 && ccnt < 2) { // Only first 2 controllers
             controllerPos = trackedDevicePose.mDeviceToAbsoluteTracking;
             SbRotation conrot = extractRotation(controllerPos);
             SbVec3f conpos = extractTranslation(controllerPos);
-            contrans[ccnt]->translation.setValue(conpos*1000); //m to mm conversion, this could be avoided by reorganizing scenegraph
+            contrans[ccnt]->translation.setValue(conpos);
             conrotat[ccnt]->rotation.setValue(conrot);
+            //read axes
+            uint32_t idpad = 0;
+            for(uint32_t x=0; x<vr::k_unControllerStateAxisCount; x++ ){
+                int prop = m_pHMD->GetInt32TrackedDeviceProperty(id, static_cast<vr::ETrackedDeviceProperty>(vr::ETrackedDeviceProperty::Prop_Axis0Type_Int32 + x));
+                if( prop==vr::k_eControllerAxis_TrackPad ){
+                    idpad = x;
+                }
+            }
+
+            float xaxis = controllerState.rAxis[idpad].x;
+            float yaxis = controllerState.rAxis[idpad].y;
+            SoRotationXYZ *xrot = new SoRotationXYZ;
+            xrot->axis.setValue(SoRotationXYZ::Z); //X of a controller rotates around worls's Z
+            xrot->angle.setValue(-xaxis);
+            SoRotationXYZ *yrot = new SoRotationXYZ;
+            yrot->axis.setValue(SoRotationXYZ::X); //Y of a controller rotates around worls's X
+            yrot->angle.setValue(-yaxis);
+            xrot->getRotation();
+            stickrotat[ccnt]->rotation.setValue(xrot->getRotation() * yrot->getRotation());
+
+            if (ccnt == 0){
+                SbVec3f step = SbVec3f(0.0f, 0.0f, 0.0f);
+                vr::HmdMatrix34_t tm = controllerPos;
+                float z0 = tm.m[0][2];
+                float z1 = tm.m[1][2];
+                float z2 = tm.m[2][2];
+                step = SbVec3f(xaxis * z0 * movspeed, xaxis * z1 * movspeed, xaxis * z2 * movspeed);
+                worldtransform->translation.setValue(worldtransform->translation.getValue() + step);
+                //Base::Console().Warning("Controller rotation: %f %f %f  \n", z0, z1, z2);
+
+            }
         }
     }
 
@@ -342,6 +389,7 @@ void CoinOpenVRWidget::paintGL()
     doneCurrent();
 
     qint64 et = etimer.nsecsElapsed();
+    movspeed = et * 0.000000005f;
     if (et > 0)
     {
         qint64 frt = 1000000000 / et;
