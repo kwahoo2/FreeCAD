@@ -54,7 +54,7 @@
 #include <Inventor/nodes/SoRotation.h>
 #include <Inventor/nodes/SoTranslation.h>
 #include <Inventor/nodes/SoScale.h>
-#include <Inventor/nodes/SoCone.h>
+#include <Inventor/nodes/SoCube.h>
 #include <Inventor/nodes/SoCylinder.h>
 #include <Inventor/nodes/SoTransform.h>
 
@@ -80,7 +80,7 @@ class CoinOpenVRWidget : public QOpenGLWidget , protected QOpenGLFunctions_3_3_C
     SoGroup *sgrp[2];
     SoSeparator *con0sep[2];
     SoSeparator *con1sep[2];
-    SoCone *conGizmo[2];
+    SoCube *conGizmo[2];
     SoTranslation *contrans[2];
     SoRotation *conrotat[2];
     SoCylinder *conStick[2];
