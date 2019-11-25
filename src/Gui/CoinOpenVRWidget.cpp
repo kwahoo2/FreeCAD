@@ -39,7 +39,6 @@
 #include <Base/Console.h>
 
 #include <Inventor/nodes/SoBaseColor.h>
-#include <Inventor/nodes/SoCone.h> //test Cone
 
 #if BUILD_OPENVR
 
@@ -97,9 +96,10 @@ CoinOpenVRWidget::CoinOpenVRWidget() : QOpenGLWidget()
         conrotat[id] = new SoRotation();
         contrans[id]->translation.setValue(0, 0, 0);
         conrotat[id]->rotation.setValue(0, 0, 0, 0);
-        conGizmo[id] = new SoCone();
-        conGizmo[id]->bottomRadius.setValue(0.1f);
+        conGizmo[id] = new SoCube();
+        conGizmo[id]->width.setValue(0.1f);
         conGizmo[id]->height.setValue(0.05f);
+        conGizmo[id]->depth.setValue(0.3f);
         conStick[id] = new SoCylinder();
         stickrotat[id] = new SoRotation();
         stickrotat[id]->rotation.setValue(0, 0, 0, 0);
@@ -340,10 +340,18 @@ void CoinOpenVRWidget::paintGL()
                 float z0 = tm.m[0][2];
                 float z1 = tm.m[1][2];
                 float z2 = tm.m[2][2];
-                step = SbVec3f(xaxis * z0 * movspeed, xaxis * z1 * movspeed, xaxis * z2 * movspeed);
+                step = SbVec3f(yaxis * z0 * movspeed, yaxis * z1 * movspeed, yaxis * z2 * movspeed);
                 worldtransform->translation.setValue(worldtransform->translation.getValue() + step);
                 //Base::Console().Warning("Controller rotation: %f %f %f  \n", z0, z1, z2);
 
+            }
+            if (ccnt == 1){
+                if ((xaxis > 0.1f || xaxis < -0.1f) || (yaxis > 0.1f || yaxis < -0.1f)){ //do not change transform id pad is not used
+                   // worldtransform->center.setValue(conpos);
+                    SbRotation padrot = stickrotat[ccnt]->rotation.getValue();
+                    padrot.scaleAngle(-0.5f * movspeed);
+                    worldtransform->rotation.setValue(worldtransform->rotation.getValue() * padrot);
+                }
             }
         }
     }
