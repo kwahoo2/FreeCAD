@@ -109,6 +109,7 @@ CoinOpenVRWidget::CoinOpenVRWidget() : QOpenGLWidget()
 
     }
     worldtransform = new SoTransform(); //use for navigation in the world
+    transfmod = new SoTransform(); //modifier of transformation
 
     for (int eye = 0; eye < 2; eye++) {
         eyehead[eye] = m_pHMD->GetEyeToHeadTransform(eyes[eye]);
@@ -316,15 +317,21 @@ void CoinOpenVRWidget::paintGL()
             conrotat[ccnt]->rotation.setValue(conrot);
             //read axes
             uint32_t idpad = 0;
+            uint32_t idtrigger = 0;
             for(uint32_t x=0; x<vr::k_unControllerStateAxisCount; x++ ){
                 int prop = m_pHMD->GetInt32TrackedDeviceProperty(id, static_cast<vr::ETrackedDeviceProperty>(vr::ETrackedDeviceProperty::Prop_Axis0Type_Int32 + x));
-                if( prop==vr::k_eControllerAxis_TrackPad ){
-                    idpad = x;
+                if( prop==vr::k_eControllerAxis_Trigger ){
+                   idtrigger = x;
+                }
+                else if( prop==vr::k_eControllerAxis_TrackPad ){
+                   idpad = x;
                 }
             }
 
             float xaxis = controllerState.rAxis[idpad].x;
             float yaxis = controllerState.rAxis[idpad].y;
+            //float trigger = controllerState.rAxis[idtrigger].x;
+
             SoRotationXYZ *xrot = new SoRotationXYZ;
             xrot->axis.setValue(SoRotationXYZ::Z); //X of a controller rotates around worls's Z
             xrot->angle.setValue(-xaxis);
@@ -333,10 +340,10 @@ void CoinOpenVRWidget::paintGL()
             yrot->angle.setValue(-yaxis);
             xrot->getRotation();
             stickrotat[ccnt]->rotation.setValue(xrot->getRotation() * yrot->getRotation());
-
+            vr::HmdMatrix34_t tm = controllerPos;
             if (ccnt == 0){
+                //worldtransform->scaleFactor.setValue(worldtransform->scaleFactor.getValue() * (1.0f + 0.1f * trigger * movspeed)); //first controller increases scale
                 SbVec3f step = SbVec3f(0.0f, 0.0f, 0.0f);
-                vr::HmdMatrix34_t tm = controllerPos;
                 float z0 = tm.m[0][2];
                 float z1 = tm.m[1][2];
                 float z2 = tm.m[2][2];
@@ -346,12 +353,17 @@ void CoinOpenVRWidget::paintGL()
 
             }
             if (ccnt == 1){
-                if ((xaxis > 0.1f || xaxis < -0.1f) || (yaxis > 0.1f || yaxis < -0.1f)){ //do not change transform id pad is not used
-                   // worldtransform->center.setValue(conpos);
-                    SbRotation padrot = stickrotat[ccnt]->rotation.getValue();
-                    padrot.scaleAngle(-0.5f * movspeed);
-                    worldtransform->rotation.setValue(worldtransform->rotation.getValue() * padrot);
-                }
+                    //worldtransform->scaleFactor.setValue(worldtransform->scaleFactor.getValue() * (1.0f - 0.1f * trigger * movspeed)); //second controller decreases scale
+                    transfmod->center.setValue(conpos);
+                    SbVec3f conXaxis = SbVec3f(tm.m[0][0], tm.m[1][0], tm.m[2][0]);
+                    SbVec3f conZaxis = SbVec3f(tm.m[0][2], tm.m[1][2], tm.m[2][2]);
+                    SbRotation conXrot = SbRotation(conXaxis, yaxis); //stick moves world around one of controller axes
+                    SbRotation conZrot = SbRotation(conZaxis, xaxis);
+                    SbRotation padrot = SbRotation();
+                    padrot = conXrot * conZrot;
+                    padrot.scaleAngle(0.5f * movspeed);
+                    transfmod->rotation.setValue(padrot);
+                    worldtransform->combineRight(transfmod);
             }
         }
     }
