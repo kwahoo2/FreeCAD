@@ -86,6 +86,7 @@ class CoinOpenVRWidget : public QOpenGLWidget , protected QOpenGLFunctions_3_3_C
     SoCylinder *conStick[2];
     SoRotation *stickrotat[2];
     SoTransform *worldtransform;
+    SoTransform *transfmod;
 
     GLuint frameBufferID[2], depthBufferID[2];
     vr::IVRSystem *m_pHMD;
