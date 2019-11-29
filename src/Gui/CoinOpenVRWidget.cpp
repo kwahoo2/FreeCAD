@@ -62,7 +62,7 @@ CoinOpenVRWidget::CoinOpenVRWidget() : QOpenGLWidget()
     if (eError != vr::VRInitError_None){
         m_pHMD = nullptr;
         qDebug() << "Unable to init VR runtime:" << vr::VR_GetVRInitErrorAsEnglishDescription( eError );
-        throw;
+        throw std::runtime_error("Unable to init VR runtime");
     }
     // Configure stereo settings.
     uint32_t flatScale = 2;
