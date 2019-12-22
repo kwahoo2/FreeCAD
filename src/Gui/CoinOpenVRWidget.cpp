@@ -190,7 +190,7 @@ CoinOpenVRWidget::~CoinOpenVRWidget()
         vr::VR_Shutdown();
         m_pHMD = nullptr;
     }
-
+    delete m_sceneManager;
     doneCurrent();
 }
 
@@ -270,10 +270,6 @@ void CoinOpenVRWidget::paintGL()
 {
     QElapsedTimer etimer; //measure time of frame
     etimer.start();
-
-    //const int ms(1000 / 144 /*fps*/);
-    //QTimer::singleShot(ms, this, SLOT(updateGL()));
-    QTimer::singleShot(0, this, SLOT(updateGL())); // A QTimer with a timeout interval of 0 will time out as soon as all the events in the window system's event queue have been processed.
 
     if ( !m_pHMD )
         return;
