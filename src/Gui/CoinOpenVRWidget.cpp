@@ -47,6 +47,7 @@
 CoinOpenVRWidget::CoinOpenVRWidget() : QOpenGLWidget()
 {
     movspeed = 0.0f; //speed of movement when analog input (stick, trackpad) is used
+    scalemod = 1.0f;
 
     eyes[0] = vr::Eye_Left;
     eyes[1] = vr::Eye_Right;
@@ -317,7 +318,10 @@ void CoinOpenVRWidget::paintGL()
             for(uint32_t x=0; x<vr::k_unControllerStateAxisCount; x++ ){
                 int prop = m_pHMD->GetInt32TrackedDeviceProperty(id, static_cast<vr::ETrackedDeviceProperty>(vr::ETrackedDeviceProperty::Prop_Axis0Type_Int32 + x));
                 if( prop==vr::k_eControllerAxis_Trigger ){
-                   idtrigger = x;
+                   if (!idtrigger) //stop search if the first trigger has been found. This is important for Valve Index controllers reporting multiple triggers
+                   {
+                       idtrigger = x;
+                   }
                 }
                 else if( prop==vr::k_eControllerAxis_TrackPad ){
                    idpad = x;
@@ -326,7 +330,7 @@ void CoinOpenVRWidget::paintGL()
 
             float xaxis = controllerState.rAxis[idpad].x;
             float yaxis = controllerState.rAxis[idpad].y;
-            //float trigger = controllerState.rAxis[idtrigger].x;
+            float trigger = controllerState.rAxis[idtrigger].x;
 
             SoRotationXYZ *xrot = new SoRotationXYZ;
             xrot->axis.setValue(SoRotationXYZ::Z); //X of a controller rotates around worls's Z
@@ -338,7 +342,7 @@ void CoinOpenVRWidget::paintGL()
             stickrotat[ccnt]->rotation.setValue(xrot->getRotation() * yrot->getRotation());
             vr::HmdMatrix34_t tm = controllerPos;
             if (ccnt == 0){
-                //worldtransform->scaleFactor.setValue(worldtransform->scaleFactor.getValue() * (1.0f + 0.1f * trigger * movspeed)); //first controller increases scale
+                scalemod = scalemod + movspeed * trigger;
                 SbVec3f step = SbVec3f(0.0f, 0.0f, 0.0f);
                 float z0 = tm.m[0][2];
                 float z1 = tm.m[1][2];
@@ -349,7 +353,10 @@ void CoinOpenVRWidget::paintGL()
 
             }
             if (ccnt == 1){
-                    //worldtransform->scaleFactor.setValue(worldtransform->scaleFactor.getValue() * (1.0f - 0.1f * trigger * movspeed)); //second controller decreases scale
+                    scalemod = scalemod - movspeed * trigger;
+                    if (scalemod < 0.01f) {
+                        scalemod = 0.01f;
+                    }
                     transfmod->center.setValue(conpos);
                     SbVec3f conXaxis = SbVec3f(tm.m[0][0], tm.m[1][0], tm.m[2][0]);
                     SbVec3f conZaxis = SbVec3f(tm.m[0][2], tm.m[1][2], tm.m[2][2]);
@@ -361,6 +368,7 @@ void CoinOpenVRWidget::paintGL()
                     transfmod->rotation.setValue(padrot);
                     worldtransform->combineRight(transfmod);
             }
+            worldtransform->scaleFactor.setValue(SbVec3f(1.0f, 1.0f, 1.0f) * scalemod);
         }
     }
 
