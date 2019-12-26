@@ -101,6 +101,7 @@ class CoinOpenVRWidget : public QOpenGLWidget , protected QOpenGLFunctions_3_3_C
     GLuint texture_ids[2];
     vr::HmdMatrix34_t headToWorld;
     float_t movspeed;
+    float_t scalemod;
 
     SbRotation extractRotation(vr::HmdMatrix34_t tmat);
     SbVec3f extractTranslation(vr::HmdMatrix34_t tmat);
