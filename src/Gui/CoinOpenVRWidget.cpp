@@ -46,8 +46,15 @@
 
 CoinOpenVRWidget::CoinOpenVRWidget() : QOpenGLWidget()
 {
+
+    QSurfaceFormat format;
+    format.setSwapInterval(0); //Disable vsync, otherwise Qt would sync HMD with flat screen which is a lot slower in most cases
+    this->format().setDefaultFormat(format);
+
     movspeed = 0.0f; //speed of movement when analog input (stick, trackpad) is used
     scalemod = 1.0f;
+
+    etimer.start();
 
     eyes[0] = vr::Eye_Left;
     eyes[1] = vr::Eye_Right;
@@ -65,12 +72,15 @@ CoinOpenVRWidget::CoinOpenVRWidget() : QOpenGLWidget()
         qDebug() << "Unable to init VR runtime:" << vr::VR_GetVRInitErrorAsEnglishDescription( eError );
         throw std::runtime_error("Unable to init VR runtime");
     }
+    float dispFreq = vr::Prop_DisplayFrequency_Float;
     // Configure stereo settings.
     uint32_t flatScale = 2;
     m_pHMD->GetRecommendedRenderTargetSize( &m_nRenderWidth, &m_nRenderHeight );
     m_nScreenWidth = m_nRenderWidth / flatScale;
     m_nScreenHeight = m_nRenderHeight / flatScale;
     resize(static_cast<int>(m_nScreenWidth), static_cast<int>(m_nScreenHeight));
+
+    Base::Console().Warning("Frequency: %f Width: %d Height: %d \n", dispFreq, m_nRenderWidth, m_nRenderHeight);
 
     m_sceneManager = new SoSceneManager();
     m_sceneManager->setViewportRegion(SbViewportRegion(static_cast<short>(m_nRenderWidth), static_cast<short>(m_nRenderHeight)));
@@ -269,8 +279,6 @@ void CoinOpenVRWidget::initializeGL()
 
 void CoinOpenVRWidget::paintGL()
 {
-    QElapsedTimer etimer; //measure time of frame
-    etimer.start();
 
     if ( !m_pHMD )
         return;
@@ -278,9 +286,6 @@ void CoinOpenVRWidget::paintGL()
     makeCurrent();
 
     glEnable(GL_TEXTURE_2D);
-
-    //getting HMD position
-    vr::VRCompositor()->WaitGetPoses(m_rTrackedDevicePose, vr::k_unMaxTrackedDeviceCount, nullptr, 0 );
 
     if ( m_rTrackedDevicePose[vr::k_unTrackedDeviceIndex_Hmd].bPoseIsValid )
     {
@@ -405,14 +410,19 @@ void CoinOpenVRWidget::paintGL()
         Q_ASSERT(!glGetError());
     }
     update(); //schedule QOpenGL composition
+
     //submit textures to compositor
     vr::VRCompositor()->Submit(vr::Eye_Left, &textures[0] );
     vr::VRCompositor()->Submit(vr::Eye_Right, &textures[1] );
 
+    //getting HMD position, waitgetposes also waits 3ms before vsync
+    vr::VRCompositor()->WaitGetPoses(m_rTrackedDevicePose, vr::k_unMaxTrackedDeviceCount, nullptr, 0 );
 
     doneCurrent();
 
     qint64 et = etimer.nsecsElapsed();
+    etimer.restart();
+
     movspeed = et * 0.000000005f;
     if (et > 0)
     {
