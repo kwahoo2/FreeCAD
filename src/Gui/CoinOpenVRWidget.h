@@ -42,6 +42,7 @@
 #include <QTimer>
 #include <QElapsedTimer>
 #include <QDebug>
+#include <QThread>
 #include <Inventor/SoDB.h>
 #include <Inventor/SoInput.h>
 
@@ -102,6 +103,7 @@ class CoinOpenVRWidget : public QOpenGLWidget , protected QOpenGLFunctions_3_3_C
     vr::HmdMatrix34_t headToWorld;
     float_t movspeed;
     float_t scalemod;
+    QElapsedTimer etimer; //measure time of frame
 
     SbRotation extractRotation(vr::HmdMatrix34_t tmat);
     SbVec3f extractTranslation(vr::HmdMatrix34_t tmat);
