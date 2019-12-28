@@ -104,6 +104,7 @@ class CoinOpenVRWidget : public QOpenGLWidget , protected QOpenGLFunctions_3_3_C
     float_t movspeed;
     float_t scalemod;
     QElapsedTimer etimer; //measure time of frame
+    QSurfaceFormat oldformat;
 
     SbRotation extractRotation(vr::HmdMatrix34_t tmat);
     SbVec3f extractTranslation(vr::HmdMatrix34_t tmat);
