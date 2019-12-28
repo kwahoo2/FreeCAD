@@ -48,7 +48,10 @@ CoinOpenVRWidget::CoinOpenVRWidget() : QOpenGLWidget()
 {
 
     QSurfaceFormat format;
+    format = this->format();
+    oldformat = format;
     format.setSwapInterval(0); //Disable vsync, otherwise Qt would sync HMD with flat screen which is a lot slower in most cases
+    format.setSamples(8);
     this->format().setDefaultFormat(format);
 
     movspeed = 0.0f; //speed of movement when analog input (stick, trackpad) is used
@@ -72,7 +75,7 @@ CoinOpenVRWidget::CoinOpenVRWidget() : QOpenGLWidget()
         qDebug() << "Unable to init VR runtime:" << vr::VR_GetVRInitErrorAsEnglishDescription( eError );
         throw std::runtime_error("Unable to init VR runtime");
     }
-    float dispFreq = vr::Prop_DisplayFrequency_Float;
+    float dispFreq = m_pHMD->GetFloatTrackedDeviceProperty( vr::k_unTrackedDeviceIndex_Hmd, vr::Prop_DisplayFrequency_Float );
     // Configure stereo settings.
     uint32_t flatScale = 2;
     m_pHMD->GetRecommendedRenderTargetSize( &m_nRenderWidth, &m_nRenderHeight );
@@ -202,7 +205,9 @@ CoinOpenVRWidget::~CoinOpenVRWidget()
         m_pHMD = nullptr;
     }
     delete m_sceneManager;
+    format().setDefaultFormat(oldformat);
     doneCurrent();
+    Base::Console().Warning("OpenVR session closed \n");
 }
 
 void CoinOpenVRWidget::setBackgroundColor(const SbColor &Col)
@@ -231,6 +236,7 @@ void CoinOpenVRWidget::resizeGL(int width, int height)
 void CoinOpenVRWidget::initializeGL()
 {
         initializeOpenGLFunctions();
+        glEnable(GL_MULTISAMPLE);
         // Store old framebuffer.
         GLint oldfb;
         glGetIntegerv(GL_FRAMEBUFFER_BINDING_EXT, &oldfb);
