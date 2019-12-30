@@ -76,18 +76,18 @@ class CoinOpenVRWidget : public QOpenGLWidget , protected QOpenGLFunctions_3_3_C
     SoSeparator *rootScene[2];
     SoFrustumCamera *camera[2];
     SoNode *scene;
-    SoTranslation *camtrans[2];
-    SoGroup *cgrp[2];
-    SoGroup *sgrp[2];
-    SoSeparator *con0sep[2];
-    SoSeparator *con1sep[2];
+    SoTranslation *camTrans[2];
+    SoGroup *cGrp[2];
+    SoGroup *sGrp[2];
+    SoSeparator *con0Sep[2];
+    SoSeparator *con1Sep[2];
     SoCube *conGizmo[2];
-    SoTranslation *contrans[2];
-    SoRotation *conrotat[2];
+    SoTranslation *conTrans[2];
+    SoRotation *conRotat[2];
     SoCylinder *conStick[2];
-    SoRotation *stickrotat[2];
-    SoTransform *worldtransform;
-    SoTransform *transfmod;
+    SoRotation *stickRotat[2];
+    SoTransform *worldTransform;
+    SoTransform *transfMod;
 
     GLuint frameBufferID[2], depthBufferID[2];
     vr::IVRSystem *m_pHMD;
@@ -97,14 +97,17 @@ class CoinOpenVRWidget : public QOpenGLWidget , protected QOpenGLFunctions_3_3_C
     uint32_t m_nScreenHeight;
     vr::Texture_t textures[2];
     vr::Hmd_Eye eyes[2];
-    vr::HmdMatrix34_t eyehead[2];
+    vr::HmdMatrix34_t eyeHead[2];
     vr::TrackedDevicePose_t m_rTrackedDevicePose[ vr::k_unMaxTrackedDeviceCount ];
-    GLuint texture_ids[2];
+    GLuint textureIds[2];
     vr::HmdMatrix34_t headToWorld;
-    float_t movspeed;
-    float_t scalemod;
-    QElapsedTimer etimer; //measure time of frame
-    QSurfaceFormat oldformat;
+    float movSpeed;
+    float scaleMod;
+    float oldTriggerVal[2];
+    float currTriggerVal[2];
+    SbVec3f oldConPos[2];
+    QElapsedTimer eTimer; //measure time of frame
+    QSurfaceFormat oldFormat;
 
     SbRotation extractRotation(vr::HmdMatrix34_t tmat);
     SbVec3f extractTranslation(vr::HmdMatrix34_t tmat);
