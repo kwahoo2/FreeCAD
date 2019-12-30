@@ -49,15 +49,15 @@ CoinOpenVRWidget::CoinOpenVRWidget() : QOpenGLWidget()
 
     QSurfaceFormat format;
     format = this->format();
-    oldformat = format;
+    oldFormat = format;
     format.setSwapInterval(0); //Disable vsync, otherwise Qt would sync HMD with flat screen which is a lot slower in most cases
     format.setSamples(8);
     this->format().setDefaultFormat(format);
 
-    movspeed = 0.0f; //speed of movement when analog input (stick, trackpad) is used
-    scalemod = 1.0f;
+    movSpeed = 0.0f; //speed of movement when analog input (stick, trackpad) is used
+    scaleMod = 1.0f;
 
-    etimer.start();
+    eTimer.start();
 
     eyes[0] = vr::Eye_Left;
     eyes[1] = vr::Eye_Right;
@@ -106,64 +106,64 @@ CoinOpenVRWidget::CoinOpenVRWidget() : QOpenGLWidget()
     }
 
     for (int id = 0; id < 2; id++) { //drawing controllers gizmos
-        contrans[id] = new SoTranslation();
-        conrotat[id] = new SoRotation();
-        contrans[id]->translation.setValue(0, 0, 0);
-        conrotat[id]->rotation.setValue(0, 0, 0, 0);
+        conTrans[id] = new SoTranslation();
+        conRotat[id] = new SoRotation();
+        conTrans[id]->translation.setValue(0, 0, 0);
+        conRotat[id]->rotation.setValue(0, 0, 0, 0);
         conGizmo[id] = new SoCube();
         conGizmo[id]->width.setValue(0.1f);
         conGizmo[id]->height.setValue(0.05f);
         conGizmo[id]->depth.setValue(0.3f);
         conStick[id] = new SoCylinder();
-        stickrotat[id] = new SoRotation();
-        stickrotat[id]->rotation.setValue(0, 0, 0, 0);
+        stickRotat[id] = new SoRotation();
+        stickRotat[id]->rotation.setValue(0, 0, 0, 0);
         conStick[id]->radius.setValue(0.03f);
         conStick[id]->height.setValue(0.1f);
 
 
     }
-    worldtransform = new SoTransform(); //use for navigation in the world
-    transfmod = new SoTransform(); //modifier of transformation
+    worldTransform = new SoTransform(); //use for navigation in the world
+    transfMod = new SoTransform(); //modifier of transformation
 
     for (int eye = 0; eye < 2; eye++) {
-        eyehead[eye] = m_pHMD->GetEyeToHeadTransform(eyes[eye]);
-        camtrans[eye] = new SoTranslation();
-        camtrans[eye]->translation.setValue(eyehead->m[0][3], 0, 0); //0 3 is eye to center
+        eyeHead[eye] = m_pHMD->GetEyeToHeadTransform(eyes[eye]);
+        camTrans[eye] = new SoTranslation();
+        camTrans[eye]->translation.setValue(eyeHead->m[0][3], 0, 0); //0 3 is eye to center
         rootScene[eye] = new SoSeparator();
-        cgrp[eye] = new SoGroup();
-        sgrp[eye] = new SoGroup();
+        cGrp[eye] = new SoGroup();
+        sGrp[eye] = new SoGroup();
         rootScene[eye]->ref();
         camera[eye] = new SoFrustumCamera();
         camera[eye]->position.setValue(basePosition);
         camera[eye]->focalDistance.setValue(5.0f);
         camera[eye]->viewportMapping.setValue(SoCamera::LEAVE_ALONE);
 
-        rootScene[eye]->addChild(cgrp[eye]);
-        cgrp[eye]->addChild(camtrans[eye]);
-        cgrp[eye]->addChild(camera[eye]);
-        rootScene[eye]->addChild(sgrp[eye]);
-        sgrp[eye]->addChild(light);
-        sgrp[eye]->addChild(light2);
+        rootScene[eye]->addChild(cGrp[eye]);
+        cGrp[eye]->addChild(camTrans[eye]);
+        cGrp[eye]->addChild(camera[eye]);
+        rootScene[eye]->addChild(sGrp[eye]);
+        sGrp[eye]->addChild(light);
+        sGrp[eye]->addChild(light2);
 
         //controllers
-        con0sep[eye] = new SoSeparator();
-        con1sep[eye] = new SoSeparator();
-        sgrp[eye]->addChild(con0sep[eye]);
-        con0sep[eye]->addChild(contrans[0]);
-        con0sep[eye]->addChild(conrotat[0]);
-        con0sep[eye]->addChild(conGizmo[0]);
-        con0sep[eye]->addChild(stickrotat[0]);
-        con0sep[eye]->addChild(conStick[0]);
-        sgrp[eye]->addChild(con1sep[eye]);
-        con1sep[eye]->addChild(contrans[1]);
-        con1sep[eye]->addChild(conrotat[1]);
-        con1sep[eye]->addChild(conGizmo[1]);
-        con1sep[eye]->addChild(stickrotat[1]);
-        con1sep[eye]->addChild(conStick[1]);
+        con0Sep[eye] = new SoSeparator();
+        con1Sep[eye] = new SoSeparator();
+        sGrp[eye]->addChild(con0Sep[eye]);
+        con0Sep[eye]->addChild(conTrans[0]);
+        con0Sep[eye]->addChild(conRotat[0]);
+        con0Sep[eye]->addChild(conGizmo[0]);
+        con0Sep[eye]->addChild(stickRotat[0]);
+        con0Sep[eye]->addChild(conStick[0]);
+        sGrp[eye]->addChild(con1Sep[eye]);
+        con1Sep[eye]->addChild(conTrans[1]);
+        con1Sep[eye]->addChild(conRotat[1]);
+        con1Sep[eye]->addChild(conGizmo[1]);
+        con1Sep[eye]->addChild(stickRotat[1]);
+        con1Sep[eye]->addChild(conStick[1]);
 
         //add scene
-        sgrp[eye]->addChild(worldtransform);
-        sgrp[eye]->addChild(scene);
+        sGrp[eye]->addChild(worldTransform);
+        sGrp[eye]->addChild(scene);
 
 
     }
@@ -181,6 +181,13 @@ CoinOpenVRWidget::CoinOpenVRWidget() : QOpenGLWidget()
         camera[eye]->right.setValue(nearPlane * pfRight);
         camera[eye]->top.setValue(nearPlane * pfTop);
         camera[eye]->bottom.setValue(nearPlane * pfBottom);
+    }
+
+    for (int contr = 0; contr < 2; contr++)
+    {
+        currTriggerVal[contr] = 0.0f;
+        oldTriggerVal[contr] = 0.0f;
+        oldConPos[contr] = SbVec3f(0.0f, 0.0f, 0.0f);
     }
 }
 
@@ -205,7 +212,7 @@ CoinOpenVRWidget::~CoinOpenVRWidget()
         m_pHMD = nullptr;
     }
     delete m_sceneManager;
-    format().setDefaultFormat(oldformat);
+    format().setDefaultFormat(oldFormat);
     doneCurrent();
     Base::Console().Warning("OpenVR session closed \n");
 }
@@ -217,8 +224,8 @@ void CoinOpenVRWidget::setBackgroundColor(const SbColor &Col)
 
 void CoinOpenVRWidget::setSceneGraph(SoNode *sceneGraph)
 {
-    sgrp[0]->replaceChild(scene, sceneGraph);
-    sgrp[1]->replaceChild(scene, sceneGraph);
+    sGrp[0]->replaceChild(scene, sceneGraph);
+    sGrp[1]->replaceChild(scene, sceneGraph);
     scene = sceneGraph;
 }
 
@@ -257,8 +264,8 @@ void CoinOpenVRWidget::initializeGL()
                                       GL_DEPTH_STENCIL_ATTACHMENT,
                                       GL_RENDERBUFFER_EXT,
                                       depthBufferID[eye]);
-            glGenTextures(1, &texture_ids[eye] );
-            glBindTexture( GL_TEXTURE_2D, texture_ids[eye] );
+            glGenTextures(1, &textureIds[eye] );
+            glBindTexture( GL_TEXTURE_2D, textureIds[eye] );
             Q_ASSERT(!glGetError());
             // Allocate storage for the texture.
             glTexImage2D(
@@ -270,7 +277,7 @@ void CoinOpenVRWidget::initializeGL()
             // Attach texture to framebuffer color object.
             glFramebufferTexture2D(
               GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D,
-              texture_ids[eye], 0);
+              textureIds[eye], 0);
             if (glCheckFramebufferStatus(GL_FRAMEBUFFER) !=
                     GL_FRAMEBUFFER_COMPLETE)
                 qDebug() << "ERROR: FrameBuffer is not operational!";
@@ -279,8 +286,6 @@ void CoinOpenVRWidget::initializeGL()
         glDisable(GL_TEXTURE_2D);
         glBindFramebuffer(GL_FRAMEBUFFER_EXT, static_cast<GLuint>(oldfb));
         doneCurrent();
-
-
 }
 
 void CoinOpenVRWidget::paintGL()
@@ -321,8 +326,8 @@ void CoinOpenVRWidget::paintGL()
             controllerPos = trackedDevicePose.mDeviceToAbsoluteTracking;
             SbRotation conrot = extractRotation(controllerPos);
             SbVec3f conpos = extractTranslation(controllerPos);
-            contrans[ccnt]->translation.setValue(conpos);
-            conrotat[ccnt]->rotation.setValue(conrot);
+            conTrans[ccnt]->translation.setValue(conpos);
+            conRotat[ccnt]->rotation.setValue(conrot);
             //read axes
             uint32_t idpad = 0;
             uint32_t idtrigger = 0;
@@ -341,7 +346,7 @@ void CoinOpenVRWidget::paintGL()
 
             float xaxis = controllerState.rAxis[idpad].x;
             float yaxis = controllerState.rAxis[idpad].y;
-            float trigger = controllerState.rAxis[idtrigger].x;
+            currTriggerVal[ccnt] = controllerState.rAxis[idtrigger].x;
 
             SoRotationXYZ *xrot = new SoRotationXYZ;
             xrot->axis.setValue(SoRotationXYZ::Z); //X of a controller rotates around worls's Z
@@ -350,37 +355,47 @@ void CoinOpenVRWidget::paintGL()
             yrot->axis.setValue(SoRotationXYZ::X); //Y of a controller rotates around worls's X
             yrot->angle.setValue(-yaxis);
             xrot->getRotation();
-            stickrotat[ccnt]->rotation.setValue(xrot->getRotation() * yrot->getRotation());
+            stickRotat[ccnt]->rotation.setValue(xrot->getRotation() * yrot->getRotation());
             vr::HmdMatrix34_t tm = controllerPos;
             if (ccnt == 0){
-                scalemod = scalemod + movspeed * trigger;
                 SbVec3f step = SbVec3f(0.0f, 0.0f, 0.0f);
                 float z0 = tm.m[0][2];
                 float z1 = tm.m[1][2];
                 float z2 = tm.m[2][2];
-                step = SbVec3f(yaxis * z0 * movspeed, yaxis * z1 * movspeed, yaxis * z2 * movspeed);
-                worldtransform->translation.setValue(worldtransform->translation.getValue() + step);
+                step = SbVec3f(yaxis * z0 * movSpeed, yaxis * z1 * movSpeed, yaxis * z2 * movSpeed);
+                worldTransform->translation.setValue(worldTransform->translation.getValue() + step);
                 //Base::Console().Warning("Controller rotation: %f %f %f  \n", z0, z1, z2);
 
             }
             if (ccnt == 1){
-                    scalemod = scalemod - movspeed * trigger;
-                    if (scalemod < 0.01f) {
-                        scalemod = 0.01f;
-                    }
-                    transfmod->center.setValue(conpos);
+                    transfMod->center.setValue(conpos);
                     SbVec3f conXaxis = SbVec3f(tm.m[0][0], tm.m[1][0], tm.m[2][0]);
                     SbVec3f conZaxis = SbVec3f(tm.m[0][2], tm.m[1][2], tm.m[2][2]);
                     SbRotation conXrot = SbRotation(conXaxis, yaxis); //stick moves world around one of controller axes
                     SbRotation conZrot = SbRotation(conZaxis, xaxis);
                     SbRotation padrot = SbRotation();
                     padrot = conXrot * conZrot;
-                    padrot.scaleAngle(0.5f * movspeed);
-                    transfmod->rotation.setValue(padrot);
-                    worldtransform->combineRight(transfmod);
+                    padrot.scaleAngle(0.5f * movSpeed);
+                    transfMod->rotation.setValue(padrot);
+                    worldTransform->combineRight(transfMod);
             }
-            worldtransform->scaleFactor.setValue(SbVec3f(1.0f, 1.0f, 1.0f) * scalemod);
+        } 
+        float tresh = 0.3f;
+        if (oldTriggerVal[0] > tresh && currTriggerVal[0] > tresh && oldTriggerVal[1] > tresh && currTriggerVal[1] > tresh) //use both controllers to change world scale
+        {
+            SbVec3f diff = conTrans[1]->translation.getValue() - conTrans[0]->translation.getValue();
+            SbVec3f olddiff = oldConPos[1] - oldConPos[0];
+            float dlen = diff.length();
+            float doldlen = olddiff.length();
+            if (dlen > 0.0f && doldlen > 0.0f){
+                scaleMod = scaleMod * dlen / doldlen;
+                worldTransform->scaleFactor.setValue(SbVec3f(1.0f, 1.0f, 1.0f) * scaleMod);
+            }
         }
+    }
+    for (int contr = 0; contr < 2; contr++){
+        oldTriggerVal[contr] = currTriggerVal[contr];
+        oldConPos[contr] = conTrans[contr]->translation.getValue();
     }
 
     for (int eye = 0; eye < 2; eye++) {
@@ -401,7 +416,7 @@ void CoinOpenVRWidget::paintGL()
         glDisable(GL_DEPTH_TEST);
         glClearDepth(1.0);
 
-        textures[eye] = { reinterpret_cast<void*>(texture_ids[eye]), vr::TextureType_OpenGL, vr::ColorSpace_Gamma };
+        textures[eye] = { reinterpret_cast<void*>(textureIds[eye]), vr::TextureType_OpenGL, vr::ColorSpace_Gamma };
 
         if (eye == 0){
             //copy to screen
@@ -426,10 +441,10 @@ void CoinOpenVRWidget::paintGL()
 
     doneCurrent();
 
-    qint64 et = etimer.nsecsElapsed();
-    etimer.restart();
+    qint64 et = eTimer.nsecsElapsed();
+    eTimer.restart();
 
-    movspeed = et * 0.000000005f;
+    movSpeed = et * 0.000000005f;
     if (et > 0)
     {
         qint64 frt = 1000000000 / et;
