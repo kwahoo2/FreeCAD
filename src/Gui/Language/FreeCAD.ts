@@ -9068,6 +9068,21 @@ Physical path: </source>
     </message>
 </context>
 <context>
+    <name>StdCmdViewXR</name>
+    <message>
+        <source>Standard-View</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>FreeCAD-XR</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Extend the FreeCAD 3D Window to a OpenXR headset</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
     <name>StdCmdWhatsThis</name>
     <message>
         <source>Help</source>

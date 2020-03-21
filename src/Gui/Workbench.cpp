@@ -641,6 +641,9 @@ MenuItem* StdWorkbench::setupMenuBar() const
           << "Std_ViewOpenVR"
 #endif
 
+#ifdef BUILD_OPENXR
+          << "Std_ViewXR"
+#endif
           << "Separator" << visu
           << "Std_ToggleVisibility" << "Std_ToggleNavigation"
           << "Std_SetAppearance" << "Std_RandomColor" << "Separator"
