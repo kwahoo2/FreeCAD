@@ -351,6 +351,10 @@ public:
     /// Breaks out a VR window for an OpenVr headset
     void viewOpenVR(void);
 
+
+    /// Breaks out a VR window for an OpenXR headset
+    void viewXR(void);
+
     /**
      * Reposition the current camera so we can see all selected objects 
      * of the scene. Therefore we search for all SOFCSelection nodes, if
