@@ -1734,6 +1734,33 @@ bool StdCmdViewOpenVR::isActive(void)
 }
 
 //===========================================================================
+// Std_ViewXR
+//===========================================================================
+DEF_STD_CMD_A(StdCmdViewXR)
+
+StdCmdViewXR::StdCmdViewXR()
+  : Command("Std_ViewXR")
+{
+    sGroup        = QT_TR_NOOP("Standard-View");
+    sMenuText     = QT_TR_NOOP("FreeCAD-XR");
+    sToolTipText  = QT_TR_NOOP("Extend the FreeCAD 3D Window to an OpenXR headset");
+    sWhatsThis    = "Std_ViewXR";
+    sStatusTip    = QT_TR_NOOP("Extend the FreeCAD 3D Window to an OpenXR headset");
+    eType         = Alter3DView;
+}
+
+void StdCmdViewXR::activated(int iMsg)
+{
+    Q_UNUSED(iMsg);
+   doCommand(Command::Gui,"Gui.SendMsgToActiveView(\"ViewXR\")");
+}
+
+bool StdCmdViewXR::isActive(void)
+{
+   return getGuiApplication()->sendHasMsgToActiveView("ViewXR");
+}
+
+//===========================================================================
 // Std_ViewScreenShot
 //===========================================================================
 DEF_STD_CMD_A(StdViewScreenShot)
@@ -3501,6 +3528,7 @@ void CreateViewStdCommands(void)
     rcCmdMgr.addCommand(new StdCmdViewFitAll());
     rcCmdMgr.addCommand(new StdCmdViewVR());
     rcCmdMgr.addCommand(new StdCmdViewOpenVR());
+    rcCmdMgr.addCommand(new StdCmdViewXR());
     rcCmdMgr.addCommand(new StdCmdViewFitSelection());
     rcCmdMgr.addCommand(new StdCmdViewRotateLeft());
     rcCmdMgr.addCommand(new StdCmdViewRotateRight());

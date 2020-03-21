@@ -540,6 +540,11 @@ bool View3DInventor::onMsg(const char* pMsg, const char** ppReturn)
         _viewer->viewOpenVR();
         return true;
     }
+    else if (strcmp("ViewXR",pMsg) == 0) {
+        // call the XR portion of the viewer
+        _viewer->viewXR();
+        return true;
+    }
     else if(strcmp("ViewSelection",pMsg) == 0) {
         _viewer->viewSelection();
         return true;
@@ -710,6 +715,12 @@ bool View3DInventor::onHasMsg(const char* pMsg) const
 #endif
     else if(strcmp("ViewOpenVR",pMsg) == 0)
 #ifdef BUILD_OPENVR
+        return true;
+#else
+        return false;
+#endif
+    else if(strcmp("ViewXR",pMsg) == 0)
+#ifdef BUILD_OPENXR
         return true;
 #else
         return false;

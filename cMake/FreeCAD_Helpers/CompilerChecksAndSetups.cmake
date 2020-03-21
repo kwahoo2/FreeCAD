@@ -25,8 +25,9 @@ macro(CompilerChecksAndSetups)
     endif(CMAKE_COMPILER_IS_GNUCXX AND NOT CMAKE_CXX_COMPILER_VERSION)
 
     # Enabled C++11 for Freecad 0.17 and later
+    # Enabled C++14 for OpenXR
     if (FREECAD_VERSION VERSION_GREATER 0.16)
-        set(BUILD_ENABLE_CXX_STD "C++11"  CACHE STRING  "Enable C++ standard")
+        set(BUILD_ENABLE_CXX_STD "C++14"  CACHE STRING  "Enable C++ standard")
         set_property(CACHE BUILD_ENABLE_CXX_STD PROPERTY STRINGS
                      "C++11"
                      "C++14"
