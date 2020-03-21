@@ -97,6 +97,10 @@ if(BUILD_OPENVR)
     find_package(OpenVR)
 endif(BUILD_OPENVR)
 
+if(BUILD_OPENXR)
+    find_package(OpenXR)
+endif(BUILD_OPENXR)
+
 SetLibraryVersions()
 SetGlobalCompilerAndLinkerSettings()
 

@@ -142,6 +142,7 @@ macro(InitializeFreeCADBuildOptions)
     option(BUILD_CLOUD "Build the FreeCAD cloud module" OFF)
     option(ENABLE_DEVELOPER_TESTS "Build the FreeCAD unit tests suit" ON)
     option(BUILD_OPENVR "Build the FreeCAD OpenVR support (need OpenVR SDK)" OFF)
+    option(BUILD_OPENXR "Build the FreeCAD OpenXR support" OFF)
 
     if(MSVC)
         set(FREECAD_3DCONNEXION_SUPPORT "NavLib" CACHE STRING "Select version of the 3Dconnexion device integration")

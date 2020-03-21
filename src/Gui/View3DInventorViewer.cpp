@@ -111,6 +111,7 @@
 #include "SoFCOffscreenRenderer.h"
 #include "SoFCSelection.h"
 #include "View3DInventorOpenVRViewer.h"
+#include "View3DInventorXRViewer.h"
 #include "SoFCSelectionAction.h"
 #include "SoFCUnifiedSelection.h"
 #include "SoFCVectorizeSVGAction.h"
@@ -3188,6 +3189,26 @@ void View3DInventorViewer::viewOpenVR(void)
     else {
         View3DInventorOpenVRViewer* openvrWin = openvrStart();
         openvrWin->setSceneGraph(pcViewProviderRoot);
+    }
+#endif
+}
+
+#if BUILD_OPENXR
+extern View3DInventorXRViewer* xrStart(void);
+extern bool xrUp   (void);
+extern void xrStop (void);
+#endif
+
+void View3DInventorViewer::viewXR(void)
+{
+#if BUILD_OPENXR
+
+    if (xrUp()) {
+        xrStop();
+    }
+    else {
+        View3DInventorXRViewer* xrWin = xrStart();
+        xrWin->setSceneGraph(pcViewProviderRoot);
     }
 #endif
 }
