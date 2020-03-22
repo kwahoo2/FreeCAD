@@ -21,9 +21,10 @@
  *                                                                         *
  ***************************************************************************/
 
+#include "PreCompiled.h"
+
 #if BUILD_OPENXR
 
-#include "PreCompiled.h"
 #include <Base/Console.h>
 #include "View3DInventorXRViewer.h"
 #include <App/Application.h>
@@ -103,9 +104,9 @@ static View3DInventorXRViewer *window=0;
 
 void xrStop()
 {
-    window->quitRendering();
 
     if(window){
+        window->quitRendering();
         delete window;
         window = 0;
     }
