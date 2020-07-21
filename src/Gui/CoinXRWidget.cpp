@@ -410,6 +410,55 @@ void CoinXRWidget::prepareXrCompositionLayers()
     });
 }
 
+void CoinXRWidget::prepareControls()
+{
+/*
+    xr::ActionSetCreateInfo actionSetInfo{ };
+    actionSet = instance.createActionSet(actionSetInfo);
+
+    xr::DispatchLoaderDynamic dispatch{ instance }; //exposes all the core functionality and all the known extensions
+
+    const int hands = 2;
+    xr::Path handPaths[hands]; //avoid duplication af actions for both hands
+    dispatch.xrStringToPath(instance, "/user/hand/left", handPaths[0].put());
+    dispatch.xrStringToPath(instance, "/user/hand/right", handPaths[1].put());
+
+    xr::ActionCreateInfo actionInfo { };
+    actionInfo.next = nullptr;
+    actionInfo.actionType = xr::ActionType::PoseInput; //XR_ACTION_TYPE_POSE_INPUT
+    strcpy(actionInfo.actionName, "hand_pose");
+    strcpy(actionInfo.localizedActionName, "Hand Pose");
+    actionInfo.countSubactionPaths = hands;
+    actionInfo.subactionPaths = handPaths;
+
+    xr::Action poseAction;
+    poseAction = actionSet.createAction(actionInfo);
+    xr::Path posePaths[hands];
+    dispatch.xrStringToPath(instance, "/user/hand/left/input/grip/pose", posePaths[0].put());
+    dispatch.xrStringToPath(instance, "/user/hand/right/input/grip/pose", posePaths[1].put());
+
+    xr::Path interactionProfilePath;
+    dispatch.xrStringToPath(instance, "/interaction_profiles/khr/simple_controller", interactionProfilePath.put());
+    const xr::ActionSuggestedBinding bindings[2];
+    bindings[0].action. = poseAction;
+    bindings[0].binding = posePaths[0];
+
+    const XrActionSuggestedBinding bindings[] = {
+        {
+            .action = poseAction,
+            .binding = posePaths[0].get()
+        },
+        {
+            .action = poseAction,
+            .binding = posePaths[1].get()
+        },
+    };
+
+*/
+
+}
+
+
 void CoinXRWidget::prepareScene()
 {
     m_sceneManager = new SoSceneManager();
@@ -502,6 +551,9 @@ bool CoinXRWidget::startXrFrame()
         case xr::SessionState::Focused:
         case xr::SessionState::Synchronized:
         case xr::SessionState::Visible:
+            session.waitFrame(xr::FrameWaitInfo{}, frameState);
+            return xr::Result::Success == session.beginFrame(xr::FrameBeginInfo{});
+        case xr::SessionState::Ready: //this is not necessary for Monado, but SteamVR would stuck at Ready state if xrBeginFrame wasn't called
             session.waitFrame(xr::FrameWaitInfo{}, frameState);
             return xr::Result::Success == session.beginFrame(xr::FrameBeginInfo{});
 
