@@ -121,6 +121,7 @@ class CoinXRWidget  : public QOpenGLWidget , protected QOpenGLFunctions_4_5_Core
     xr::SystemId systemId;
     xr::Session session;
     xr::FrameState frameState;
+    xr::ActionSet actionSet;
     std::vector<xr::View> eyeViewStates;
     xr::DispatchLoaderDynamic dispatch;
     xr::GraphicsRequirementsOpenGLKHR graphicsRequirements;
@@ -138,6 +139,7 @@ class CoinXRWidget  : public QOpenGLWidget , protected QOpenGLFunctions_4_5_Core
     void prepareXrSession();
     void prepareXrSwapchain();
     void prepareXrCompositionLayers();
+    void prepareControls();
     void prepareScene();
     bool startXrFrame();
     void endXrFrame();
