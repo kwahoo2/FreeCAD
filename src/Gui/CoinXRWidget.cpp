@@ -57,6 +57,7 @@ CoinXRWidget::CoinXRWidget() : QOpenGLWidget()
     format.setBlueBufferSize(8);
     format.setDepthBufferSize(24);
     format.setStencilBufferSize(8);
+    format.setAlphaBufferSize(8);
     format.setSwapBehavior(QSurfaceFormat::DoubleBuffer);
 
     format.setSamples(8);
@@ -70,6 +71,7 @@ CoinXRWidget::CoinXRWidget() : QOpenGLWidget()
     prepareXrSession();
     prepareXrSwapchain();
     prepareXrCompositionLayers();
+    prepareControls();
     prepareScene();
 
 }
@@ -172,6 +174,7 @@ void CoinXRWidget::paintGL()
 
     if (startXrFrame()) {
         updateXrViews();
+        updateXrControls();
         if (frameState.shouldRender) {
             xr::for_each_side_index([&](uint32_t eyeIndex){
                 // Clear state pollution
@@ -199,15 +202,15 @@ void CoinXRWidget::paintGL()
                 glDisable(GL_DEPTH_TEST);
                 glClearDepth(1.0);
 
-                if (eyeIndex == 0){
+                if (eyeIndex == 0){ //FIXME, black screen with SteamVR
                     //copy to screen
                     glBindFramebuffer(GL_DRAW_FRAMEBUFFER, static_cast<GLuint>(oldfb));
                     glBlitFramebuffer(
                     0, 0, static_cast<int>(m_nRenderWidth), static_cast<int>(m_nRenderHeight),
                     0, 0, static_cast<int>(m_nScreenWidth), static_cast<int>(m_nScreenHeight),
                     GL_COLOR_BUFFER_BIT, GL_NEAREST);
-
                 }
+
                 // Continue rendering to the original frame buffer (likely 0, the onscreen buffer).
                 glBindFramebuffer(GL_FRAMEBUFFER, static_cast<GLuint>(oldfb));
                 Q_ASSERT(!glGetError());
@@ -412,14 +415,18 @@ void CoinXRWidget::prepareXrCompositionLayers()
 
 void CoinXRWidget::prepareControls()
 {
-/*
+
     xr::ActionSetCreateInfo actionSetInfo{ };
+    actionSetInfo.priority = 0;
+    actionSetInfo.type = xr::StructureType::ActionSetCreateInfo;
+    actionSetInfo.next = nullptr;
+    strcpy(actionSetInfo.actionSetName, "baseactionset");
+    strcpy(actionSetInfo.localizedActionSetName, "Base Action Set");
+
     actionSet = instance.createActionSet(actionSetInfo);
 
     xr::DispatchLoaderDynamic dispatch{ instance }; //exposes all the core functionality and all the known extensions
 
-    const int hands = 2;
-    xr::Path handPaths[hands]; //avoid duplication af actions for both hands
     dispatch.xrStringToPath(instance, "/user/hand/left", handPaths[0].put());
     dispatch.xrStringToPath(instance, "/user/hand/right", handPaths[1].put());
 
@@ -431,30 +438,50 @@ void CoinXRWidget::prepareControls()
     actionInfo.countSubactionPaths = hands;
     actionInfo.subactionPaths = handPaths;
 
-    xr::Action poseAction;
     poseAction = actionSet.createAction(actionInfo);
     xr::Path posePaths[hands];
     dispatch.xrStringToPath(instance, "/user/hand/left/input/grip/pose", posePaths[0].put());
     dispatch.xrStringToPath(instance, "/user/hand/right/input/grip/pose", posePaths[1].put());
+    //instance.stringToPath("/user/hand/left/input/grip/pose", posePaths[0]);
+    //instance.stringToPath("/user/hand/right/input/grip/pose", posePaths[1]);
 
     xr::Path interactionProfilePath;
     dispatch.xrStringToPath(instance, "/interaction_profiles/khr/simple_controller", interactionProfilePath.put());
-    const xr::ActionSuggestedBinding bindings[2];
-    bindings[0].action. = poseAction;
-    bindings[0].binding = posePaths[0];
 
-    const XrActionSuggestedBinding bindings[] = {
-        {
-            .action = poseAction,
-            .binding = posePaths[0].get()
-        },
-        {
-            .action = poseAction,
-            .binding = posePaths[1].get()
-        },
+    const xr::ActionSuggestedBinding bindings[2] {
+            {poseAction,
+             posePaths[0]},
+            {poseAction,
+             posePaths[1]}
     };
 
-*/
+    xr::InteractionProfileSuggestedBinding suggestedBindings { };
+    suggestedBindings.type = xr::StructureType::InteractionProfileSuggestedBinding; //XR_TYPE_INTERACTION_PROFILE_SUGGESTED_BINDING
+    suggestedBindings.next = nullptr;
+    suggestedBindings.suggestedBindings = bindings;
+    suggestedBindings.interactionProfile = interactionProfilePath;
+    suggestedBindings.countSuggestedBindings = 2;
+
+    instance.suggestInteractionProfileBindings(suggestedBindings);
+
+    xr::ActionSpaceCreateInfo actionSpaceInfo {};
+    actionSpaceInfo.type = xr::StructureType::ActionSpaceCreateInfo;
+    actionSpaceInfo.next = nullptr;
+    actionSpaceInfo.action = poseAction;
+    actionSpaceInfo.poseInActionSpace.orientation.w = 1.f;
+    actionSpaceInfo.subactionPath = handPaths[0];
+
+    session.createActionSpace(actionSpaceInfo, handSpaces[0]);
+    actionSpaceInfo.subactionPath = handPaths[1];
+    session.createActionSpace(actionSpaceInfo, handSpaces[1]);
+
+    xr::SessionActionSetsAttachInfo attachInfo {};
+    attachInfo.type = xr::StructureType::SessionActionSetsAttachInfo;
+    attachInfo.next = nullptr;
+    attachInfo.countActionSets = 1;
+    attachInfo.actionSets = &actionSet;
+
+    session.attachSessionActionSets(attachInfo);
 
 }
 
@@ -474,6 +501,22 @@ void CoinXRWidget::prepareScene()
     light2->direction.setValue(-1,-1,-1);
     light2->intensity.setValue(0.6f);
     light2->color.setValue(0.8f,0.8f,1.0f);
+
+    for (uint32_t id = 0; id < hands; id++) { //drawing controllers gizmos
+        conTrans[id] = new SoTranslation();
+        conRotat[id] = new SoRotation();
+        conTrans[id]->translation.setValue(0, 0, 0);
+        conRotat[id]->rotation.setValue(0, 0, 0, 0);
+        conGizmo[id] = new SoCube();
+        conGizmo[id]->width.setValue(0.1f);
+        conGizmo[id]->height.setValue(0.05f);
+        conGizmo[id]->depth.setValue(0.3f);
+        conStick[id] = new SoCylinder();
+        stickRotat[id] = new SoRotation();
+        stickRotat[id]->rotation.setValue(0, 0, 0, 0);
+        conStick[id]->radius.setValue(0.03f);
+        conStick[id]->height.setValue(0.1f);
+    }
 
     scene = new SoSeparator(0); // Placeholder.
 
@@ -497,6 +540,21 @@ void CoinXRWidget::prepareScene()
         sGrp[eyeIndex]->addChild(light);
         sGrp[eyeIndex]->addChild(light2);
 
+        //controllers
+        con0Sep[eyeIndex] = new SoSeparator();
+        con1Sep[eyeIndex] = new SoSeparator();
+        sGrp[eyeIndex]->addChild(con0Sep[eyeIndex]);
+        con0Sep[eyeIndex]->addChild(conTrans[0]);
+        con0Sep[eyeIndex]->addChild(conRotat[0]);
+        con0Sep[eyeIndex]->addChild(conGizmo[0]);
+        con0Sep[eyeIndex]->addChild(stickRotat[0]);
+        con0Sep[eyeIndex]->addChild(conStick[0]);
+        sGrp[eyeIndex]->addChild(con1Sep[eyeIndex]);
+        con1Sep[eyeIndex]->addChild(conTrans[1]);
+        con1Sep[eyeIndex]->addChild(conRotat[1]);
+        con1Sep[eyeIndex]->addChild(conGizmo[1]);
+        con1Sep[eyeIndex]->addChild(stickRotat[1]);
+        con1Sep[eyeIndex]->addChild(conStick[1]);
 
         //add scene
         //sGrp[eyeIndex]->addChild(worldTransform);
@@ -548,15 +606,12 @@ void CoinXRWidget::onSessionStateChanged(const xr::EventDataSessionStateChanged&
 bool CoinXRWidget::startXrFrame()
 {
     switch (sessionState) {
+        case xr::SessionState::Ready: //this is not necessary for Monado, but SteamVR would stuck at Ready state if xrBeginFrame wasn't called
         case xr::SessionState::Focused:
         case xr::SessionState::Synchronized:
         case xr::SessionState::Visible:
             session.waitFrame(xr::FrameWaitInfo{}, frameState);
             return xr::Result::Success == session.beginFrame(xr::FrameBeginInfo{});
-        case xr::SessionState::Ready: //this is not necessary for Monado, but SteamVR would stuck at Ready state if xrBeginFrame wasn't called
-            session.waitFrame(xr::FrameWaitInfo{}, frameState);
-            return xr::Result::Success == session.beginFrame(xr::FrameBeginInfo{});
-
         default:
             break;
     }
@@ -590,6 +645,58 @@ void CoinXRWidget::updateXrViews()
         camera[eyeIndex]->bottom.setValue(nearPlane * pfBottom);
 
     });
+}
+
+void CoinXRWidget::updateXrControls()
+{
+    const xr::ActiveActionSet activeActionSet {actionSet};
+
+    xr::ActionsSyncInfo syncInfo {};
+    syncInfo.type = xr::StructureType::ActionsSyncInfo;
+    syncInfo.countActiveActionSets = 1;
+    syncInfo.activeActionSets = &activeActionSet;
+
+    session.syncActions(syncInfo);
+
+    xr::SpaceLocation spaceLocation[hands]; //xrSpaceLocation contains "pose" field with position and orientation
+   // bool spaceLocationValid[hands];
+
+    SbRotation conrot[2];
+    SbVec3f conpos[2];
+    for (uint32_t i = 0; i < hands; i++)
+    {
+        xr::ActionStatePose poseState {};
+        poseState.type = xr::StructureType::ActionStatePose;
+        poseState.next = nullptr;
+
+        xr::ActionStateGetInfo getInfo {};
+        getInfo.type = xr::StructureType::ActionStateGetInfo;
+        getInfo.next = nullptr;
+        getInfo.action = poseAction;
+        getInfo.subactionPath = handPaths[i];
+
+        session.getActionStatePose(getInfo, poseState);
+
+        spaceLocation[i].type = xr::StructureType::SpaceLocation;
+        spaceLocation[i].next = nullptr;
+
+        handSpaces[i].locateSpace(space, frameState.predictedDisplayTime, spaceLocation[i]);
+        /*Base::Console().Warning("Hand pose %d: %f %f %f %f, %f %f %f\n", i,
+                                spaceLocation[i].pose.orientation.x, spaceLocation[i].pose.orientation.y,
+                                spaceLocation[i].pose.orientation.z, spaceLocation[i].pose.orientation.w,
+                                spaceLocation[i].pose.position.x, spaceLocation[i].pose.position.y,
+                                spaceLocation[i].pose.position.z);*/
+
+        conrot[i] = SbRotation(spaceLocation[i].pose.orientation.x, spaceLocation[i].pose.orientation.y,
+                spaceLocation[i].pose.orientation.z, spaceLocation[i].pose.orientation.w);
+        conpos[i] = SbVec3f(spaceLocation[i].pose.position.x, spaceLocation[i].pose.position.y,
+                         spaceLocation[i].pose.position.z);
+        conTrans[i]->translation.setValue(conpos[i] + basePosition);
+        conRotat[i]->rotation.setValue(conrot[i]);
+
+     }
+
+
 }
 
 void CoinXRWidget::endXrFrame()

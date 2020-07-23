@@ -104,9 +104,17 @@ class CoinXRWidget  : public QOpenGLWidget , protected QOpenGLFunctions_4_5_Core
     SoTranslation *camTrans[2];
     SoGroup *cGrp[2];
     SoGroup *sGrp[2];
+    SoSeparator *con0Sep[2];
+    SoSeparator *con1Sep[2];
+    SoCube *conGizmo[2];
+    SoTranslation *conTrans[2];
+    SoRotation *conRotat[2];
+    SoCylinder *conStick[2];
+    SoRotation *stickRotat[2];
     QSurfaceFormat oldFormat;
 
     bool quit{ false };
+    static const uint32_t hands = 2;
     uint32_t m_nRenderWidth;
     uint32_t m_nRenderHeight;
     uint32_t m_nScreenWidth;
@@ -122,6 +130,9 @@ class CoinXRWidget  : public QOpenGLWidget , protected QOpenGLFunctions_4_5_Core
     xr::Session session;
     xr::FrameState frameState;
     xr::ActionSet actionSet;
+    xr::Action poseAction;
+    xr::Path handPaths[hands]; //avoid duplication af actions for both hands
+    xr::Space handSpaces[hands];
     std::vector<xr::View> eyeViewStates;
     xr::DispatchLoaderDynamic dispatch;
     xr::GraphicsRequirementsOpenGLKHR graphicsRequirements;
@@ -132,6 +143,7 @@ class CoinXRWidget  : public QOpenGLWidget , protected QOpenGLFunctions_4_5_Core
     std::array<xr::CompositionLayerProjectionView, 2> projectionLayerViews;
     xr::CompositionLayerProjection projectionLayer{ {}, {}, 2, projectionLayerViews.data() };
     xr::Space& space{ projectionLayer.space };
+
     std::vector<xr::CompositionLayerBaseHeader*> layersPointers;
 
     void prepareXrInstance();
@@ -145,6 +157,7 @@ class CoinXRWidget  : public QOpenGLWidget , protected QOpenGLFunctions_4_5_Core
     void endXrFrame();
     void pollXrEvents();
     void updateXrViews();
+    void updateXrControls();
     void onSessionStateChanged(const xr::EventDataSessionStateChanged& sessionStateChangedEvent);
 
 public:
