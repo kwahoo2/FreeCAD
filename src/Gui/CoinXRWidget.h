@@ -111,6 +111,8 @@ class CoinXRWidget  : public QOpenGLWidget , protected QOpenGLFunctions_4_5_Core
     SoRotation *conRotat[2];
     SoCylinder *conStick[2];
     SoRotation *stickRotat[2];
+    SoTransform *worldTransform;
+    SoTransform *transfMod;
     QSurfaceFormat oldFormat;
 
     bool quit{ false };
@@ -130,7 +132,7 @@ class CoinXRWidget  : public QOpenGLWidget , protected QOpenGLFunctions_4_5_Core
     xr::Session session;
     xr::FrameState frameState;
     xr::ActionSet actionSet;
-    xr::Action poseAction;
+    xr::Action poseAction, xLeverAction, yLeverAction, grabAction;
     xr::Path handPaths[hands]; //avoid duplication af actions for both hands
     xr::Space handSpaces[hands];
     std::vector<xr::View> eyeViewStates;
@@ -143,6 +145,13 @@ class CoinXRWidget  : public QOpenGLWidget , protected QOpenGLFunctions_4_5_Core
     std::array<xr::CompositionLayerProjectionView, 2> projectionLayerViews;
     xr::CompositionLayerProjection projectionLayer{ {}, {}, 2, projectionLayerViews.data() };
     xr::Space& space{ projectionLayer.space };
+
+    float movSpeed;
+    float scaleMod;
+    float oldTriggerVal[hands];
+    float currTriggerVal[hands];
+    SbVec3f oldConPos[hands];
+    QElapsedTimer eTimer; //measure time of frame
 
     std::vector<xr::CompositionLayerBaseHeader*> layersPointers;
 
