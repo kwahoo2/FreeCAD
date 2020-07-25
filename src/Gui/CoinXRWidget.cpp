@@ -174,6 +174,9 @@ void CoinXRWidget::paintGL()
     }
     makeCurrent();
 
+    GLint oldfb;
+    glGetIntegerv(GL_FRAMEBUFFER_BINDING, &oldfb);
+
     if (startXrFrame()) {
         updateXrViews();
         updateXrControls();
@@ -181,8 +184,6 @@ void CoinXRWidget::paintGL()
             xr::for_each_side_index([&](uint32_t eyeIndex){
                 // Clear state pollution
                 glUseProgram(0);
-                GLint oldfb;
-                glGetIntegerv(GL_FRAMEBUFFER_BINDING, &oldfb);
 
                 uint32_t swapchainIndex;
 
@@ -204,7 +205,7 @@ void CoinXRWidget::paintGL()
                 glDisable(GL_DEPTH_TEST);
                 glClearDepth(1.0);
 
-                if (eyeIndex == 0){ //FIXME, black screen with SteamVR
+                if (eyeIndex == 0){
                     //copy to screen
                     glBindFramebuffer(GL_DRAW_FRAMEBUFFER, static_cast<GLuint>(oldfb));
                     glBlitFramebuffer(
