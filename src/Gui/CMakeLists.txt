@@ -206,7 +206,6 @@ IF(OpenXR_FOUND)
 ENDIF(OpenXR_FOUND)
 
 if(FREECAD_USE_SHIBOKEN)
-if(SHIBOKEN_INCLUDE_DIR)
     if (BUILD_QT5)
         add_definitions(-DHAVE_SHIBOKEN2)
     else()
