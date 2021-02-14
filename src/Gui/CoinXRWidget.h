@@ -92,7 +92,7 @@
 #include <Inventor/nodes/SoCylinder.h>
 #include <Inventor/nodes/SoTransform.h>
 
-
+#include "XRInteraction.h"
 
 //QOpenGLWidget is a modern replacement for QGLWidget, it performs offscreen rendering
 class CoinXRWidget  : public QOpenGLWidget , protected QOpenGLFunctions_4_5_Core
@@ -114,6 +114,7 @@ class CoinXRWidget  : public QOpenGLWidget , protected QOpenGLFunctions_4_5_Core
     SoTransform *worldTransform;
     SoTransform *transfMod;
     QSurfaceFormat oldFormat;
+    SoSeparator *conMenuSep;
 
     bool quit{ false };
     static const uint32_t hands = 2;
@@ -148,9 +149,7 @@ class CoinXRWidget  : public QOpenGLWidget , protected QOpenGLFunctions_4_5_Core
 
     float movSpeed;
     float scaleMod;
-    float oldTriggerVal[hands];
     float currTriggerVal[hands];
-    SbVec3f oldConPos[hands];
     QElapsedTimer eTimer; //measure time of frame
 
     std::vector<xr::CompositionLayerBaseHeader*> layersPointers;
@@ -168,6 +167,9 @@ class CoinXRWidget  : public QOpenGLWidget , protected QOpenGLFunctions_4_5_Core
     void updateXrViews();
     void updateXrControls();
     void onSessionStateChanged(const xr::EventDataSessionStateChanged& sessionStateChangedEvent);
+
+    //XRInteraction
+    XRInteraction *mXRi;
 
 public:
     explicit CoinXRWidget();
