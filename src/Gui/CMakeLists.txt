@@ -907,6 +907,7 @@ SET(View3D_CPP_SRCS
     CoinRiftWidget.cpp
     CoinOpenVRWidget.cpp
     CoinXRWidget.cpp
+    XRInteraction.cpp
     View3DPy.cpp
     View3DViewerPy.cpp
     NaviCube.cpp
@@ -936,6 +937,7 @@ SET(View3D_SRCS
     CoinRiftWidget.h
     CoinOpenVRWidget.h
     CoinXRWidget.h
+    XRInteraction.h
     View3DViewerPy.h
     NaviCube.h
     NavigationAnimator.h

@@ -74,6 +74,10 @@ CoinXRWidget::CoinXRWidget() : QOpenGLWidget()
     prepareControls();
     prepareScene();
 
+    mXRi = new XRInteraction();
+    mXRi->pauseThread();
+    mXRi->start();
+
     eTimer.start();
 
 }
@@ -81,6 +85,7 @@ CoinXRWidget::CoinXRWidget() : QOpenGLWidget()
 CoinXRWidget::~CoinXRWidget()
 {
     makeCurrent();
+
     xr::for_each_side_index([&](uint32_t eyeIndex) {
         rootScene[eyeIndex]->unref();
     });
@@ -251,7 +256,7 @@ void CoinXRWidget::prepareXrInstance()
     requestedExtensions.push_back(XR_KHR_OPENGL_ENABLE_EXTENSION_NAME);
 
     xr::InstanceCreateInfo ici{ {},
-                                { "gl_single_file_example", 0, "openXrSamples", 0, xr::Version::current() },
+                                { "FreeCAD_XR", 0, "openXrSamples", 0, xr::Version::current() },
                                 0,
                                 nullptr,
                                 static_cast<uint32_t>(requestedExtensions.size()),
@@ -431,8 +436,6 @@ void CoinXRWidget::prepareControls()
     for (uint32_t i = 0; i < hands; i++)
     {
         currTriggerVal[i] = 0.0f;
-        oldTriggerVal[i] = 0.0f;
-        oldConPos[i] = SbVec3f(0.0f, 0.0f, 0.0f);
     }
 
     xr::ActionSetCreateInfo actionSetInfo{ };
@@ -668,6 +671,7 @@ void CoinXRWidget::prepareScene()
         con0Sep[eyeIndex]->addChild(conTrans[0]);
         con0Sep[eyeIndex]->addChild(conRotat[0]);
         con0Sep[eyeIndex]->addChild(conGizmo[0]);
+        //con0Sep[eyeIndex]->addChild(conMenuSep); //Menu container modified in XRInteraction
         con0Sep[eyeIndex]->addChild(stickRotat[0]);
         con0Sep[eyeIndex]->addChild(conStick[0]);
         sGrp[eyeIndex]->addChild(con1Sep[eyeIndex]);
@@ -682,6 +686,8 @@ void CoinXRWidget::prepareScene()
         sGrp[eyeIndex]->addChild(scene);
 
     });
+
+    //mXRi->setMenuSeparator(conMenuSep); //This will be modified in XRInteraction object
 }
 
 void CoinXRWidget::pollXrEvents()
@@ -887,29 +893,10 @@ void CoinXRWidget::updateXrControls()
             worldTransform->combineRight(transfMod);
         }
 
-        //TODO: world scale control
-        /*
-        float tresh = 0.3f;
-        if (oldTriggerVal[0] > tresh && currTriggerVal[0] > tresh && oldTriggerVal[1] > tresh && currTriggerVal[1] > tresh){ //use both controllers to change world scale
-
-            SbVec3f diff = conTrans[1]->translation.getValue() - conTrans[0]->translation.getValue();
-            SbVec3f olddiff = oldConPos[1] - oldConPos[0];
-            float dlen = diff.length();
-            float doldlen = olddiff.length();
-            if (dlen > 0.0f && doldlen > 0.0f){
-                scaleMod = scaleMod * dlen / doldlen;
-                worldTransform->scaleFactor.setValue(SbVec3f(1.0f, 1.0f, 1.0f) * scaleMod);
-            }
-        }*/
-
-
+        //XRInteraction
+        mXRi->setControllerState(i, worldTransform, conTrans[i], conRotat[i], currTriggerVal[i]);
     }
-    /*for (uint32_t i = 0; i < hands; i++){
-        oldTriggerVal[i] = currTriggerVal[i];
-        oldConPos[i] = conTrans[i]->translation.getValue();
-    }*/
-
-
+    mXRi->resumeThread();
 }
 
 void CoinXRWidget::endXrFrame()
@@ -932,6 +919,8 @@ void CoinXRWidget::endXrFrame()
 void CoinXRWidget::quitRendering()
 {
     quit = true;
+    mXRi->resumeThread();
+    mXRi->stop();
     Base::Console().Warning("XR rendering stopped \n");
 }
 
