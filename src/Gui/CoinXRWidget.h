@@ -97,6 +97,7 @@
 //QOpenGLWidget is a modern replacement for QGLWidget, it performs offscreen rendering
 class CoinXRWidget  : public QOpenGLWidget , protected QOpenGLFunctions_4_5_Core
 {
+    SbViewportRegion vpReg;
     SoSceneManager *m_sceneManager;
     SoSeparator *rootScene[2];
     SoFrustumCamera *camera[2];
@@ -141,8 +142,8 @@ class CoinXRWidget  : public QOpenGLWidget , protected QOpenGLFunctions_4_5_Core
     xr::GraphicsRequirementsOpenGLKHR graphicsRequirements;
     xr::SessionState sessionState{ xr::SessionState::Idle };
     xr::SwapchainCreateInfo swapchainCreateInfo;
-    std::vector<xr::Swapchain> swapchains; //one swapchain per eye
-    std::vector<std::vector<xr::SwapchainImageOpenGLKHR> > swapchainImagesArr; //two swapchain images (for both eyes)
+    xr::Swapchain swapchain;
+    std::vector<xr::SwapchainImageOpenGLKHR> swapchainImages;
     std::array<xr::CompositionLayerProjectionView, 2> projectionLayerViews;
     xr::CompositionLayerProjection projectionLayer{ {}, {}, 2, projectionLayerViews.data() };
     xr::Space& space{ projectionLayer.space };

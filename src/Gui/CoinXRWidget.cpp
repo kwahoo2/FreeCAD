@@ -59,8 +59,7 @@ CoinXRWidget::CoinXRWidget() : QOpenGLWidget()
     format.setStencilBufferSize(8);
     format.setAlphaBufferSize(8);
     format.setSwapBehavior(QSurfaceFormat::DoubleBuffer);
-
-    format.setSamples(8);
+    format.setSamples(8); //MSAA
     this->format().setDefaultFormat(format);
 
     prepareXrInstance();
@@ -100,12 +99,9 @@ CoinXRWidget::~CoinXRWidget()
         fbo.depthBuffer = 0;
     }
 
-    for (xr::Swapchain swapchain : swapchains) {
-        if (swapchain)
-        {
-            swapchain.destroy();
-            swapchain = nullptr;
-        }
+    if (swapchain) {
+        swapchain.destroy();
+        swapchain = nullptr;
     }
 
     if (session) {
@@ -186,44 +182,55 @@ void CoinXRWidget::paintGL()
         updateXrViews();
         updateXrControls();
         if (frameState.shouldRender) {
-            xr::for_each_side_index([&](uint32_t eyeIndex){
-                // Clear state pollution
-                glUseProgram(0);
+            // Clear state pollution
+            glUseProgram(0);
 
-                uint32_t swapchainIndex;
+            uint32_t swapchainIndex;
 
-                xr::Swapchain swapchain = swapchains[eyeIndex];
+            swapchain.acquireSwapchainImage(xr::SwapchainImageAcquireInfo{}, &swapchainIndex);
+            swapchain.waitSwapchainImage(xr::SwapchainImageWaitInfo{ xr::Duration::infinite() });
 
-                swapchain.acquireSwapchainImage(xr::SwapchainImageAcquireInfo{}, &swapchainIndex);
-                swapchain.waitSwapchainImage(xr::SwapchainImageWaitInfo{ xr::Duration::infinite() });
+            glBindFramebuffer(GL_FRAMEBUFFER, fbo.id);
+            glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, swapchainImages[swapchainIndex].image, 0);
 
-                glBindFramebuffer(GL_FRAMEBUFFER, fbo.id);
+            // "render" to the swapchain image
+            glEnable(GL_SCISSOR_TEST);
+            glScissor(0, 0, static_cast<int32_t>(m_nRenderWidth) / 2, static_cast<int32_t>(m_nRenderHeight));
+            vpReg.setViewportPixels(0, 0, static_cast<short>(m_nRenderWidth) / 2, static_cast<short>(m_nRenderHeight));
+            m_sceneManager->setViewportRegion(vpReg);
+            m_sceneManager->setSceneGraph(rootScene[0]);
+            glEnable(GL_CULL_FACE);
+            glEnable(GL_DEPTH_TEST);
+            m_sceneManager->render();
+            glDisable(GL_CULL_FACE);
+            glDisable(GL_DEPTH_TEST);
+            glClearDepth(1.0);
 
-                glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, swapchainImagesArr[eyeIndex][swapchainIndex].image, 0);
+            glScissor(static_cast<int32_t>(m_nRenderWidth) / 2, 0, static_cast<int32_t>(m_nRenderWidth) / 2, static_cast<int32_t>(m_nRenderHeight));
+            vpReg.setViewportPixels(static_cast<short>(m_nRenderWidth) / 2, 0, static_cast<short>(m_nRenderWidth) / 2, static_cast<short>(m_nRenderHeight));
+            m_sceneManager->setViewportRegion(vpReg);
+            m_sceneManager->setSceneGraph(rootScene[1]);
+            glEnable(GL_CULL_FACE);
+            glEnable(GL_DEPTH_TEST);
+            m_sceneManager->render();
+            glDisable(GL_CULL_FACE);
+            glDisable(GL_DEPTH_TEST);
+            glClearDepth(1.0);
 
-                // "render" to the swapchain image
-                m_sceneManager->setSceneGraph(rootScene[eyeIndex]);
-                glEnable(GL_CULL_FACE);
-                glEnable(GL_DEPTH_TEST);
-                m_sceneManager->render();
-                glDisable(GL_CULL_FACE);
-                glDisable(GL_DEPTH_TEST);
-                glClearDepth(1.0);
+            // fast blit from the fbo to the window surface
+            glDisable(GL_SCISSOR_TEST);
+            glBindFramebuffer(GL_DRAW_FRAMEBUFFER, static_cast<GLuint>(oldfb));
+            glBlitFramebuffer(
+                        0, 0, static_cast<int>(m_nRenderWidth), static_cast<int>(m_nRenderHeight),
+                        0, 0, static_cast<int>(m_nScreenWidth), static_cast<int>(m_nScreenHeight),
+                        GL_COLOR_BUFFER_BIT, GL_NEAREST);
 
-                if (eyeIndex == 0){
-                    //copy to screen
-                    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, static_cast<GLuint>(oldfb));
-                    glBlitFramebuffer(
-                                0, 0, static_cast<int>(m_nRenderWidth), static_cast<int>(m_nRenderHeight),
-                                0, 0, static_cast<int>(m_nScreenWidth), static_cast<int>(m_nScreenHeight),
-                                GL_COLOR_BUFFER_BIT, GL_NEAREST);
-                }
 
-                // Continue rendering to the original frame buffer (likely 0, the onscreen buffer).
-                glBindFramebuffer(GL_FRAMEBUFFER, static_cast<GLuint>(oldfb));
-                Q_ASSERT(!glGetError());
-                swapchain.releaseSwapchainImage(xr::SwapchainImageReleaseInfo{});
-            });
+            // Continue rendering to the original frame buffer (likely 0, the onscreen buffer).
+            glBindFramebuffer(GL_FRAMEBUFFER, static_cast<GLuint>(oldfb));
+            Q_ASSERT(!glGetError());
+            swapchain.releaseSwapchainImage(xr::SwapchainImageReleaseInfo{});
+
             update(); //schedule QOpenGL composition
             doneCurrent();
         }
@@ -297,7 +304,7 @@ void CoinXRWidget::prepareXrSystem()
         throw std::runtime_error("Per-eye images have different recommended heights");
     }
 
-    m_nRenderWidth = viewConfigViews[0].recommendedImageRectWidth; //renderTargetSize = { viewConfigViews[0].recommendedImageRectWidth, viewConfigViews[0].recommendedImageRectHeight };
+    m_nRenderWidth = viewConfigViews[0].recommendedImageRectWidth * 2; //renderTargetSize = { viewConfigViews[0].recommendedImageRectWidth, viewConfigViews[0].recommendedImageRectHeight };
     m_nRenderHeight = viewConfigViews[0].recommendedImageRectHeight;
 
     graphicsRequirements = instance.getOpenGLGraphicsRequirementsKHR(systemId, dispatch);
@@ -397,10 +404,6 @@ void CoinXRWidget::prepareXrSession()
 }
 void CoinXRWidget::prepareXrSwapchain()
 {
-    xr::for_each_side_index([&](uint32_t eyeIndex){
-        xr::Swapchain swapchain;
-        std::vector<xr::SwapchainImageOpenGLKHR> swapchainImages;
-
         swapchainCreateInfo.usageFlags = xr::SwapchainUsageFlagBits::TransferDst;
         swapchainCreateInfo.format = static_cast<int64_t>(GL_SRGB8_ALPHA8);
         swapchainCreateInfo.sampleCount = 1;
@@ -412,21 +415,22 @@ void CoinXRWidget::prepareXrSwapchain()
         swapchain = session.createSwapchain(swapchainCreateInfo);
         swapchainImages = swapchain.enumerateSwapchainImages<xr::SwapchainImageOpenGLKHR>();
 
-        swapchains.push_back(swapchain);
-        swapchainImagesArr.push_back(swapchainImages);
-    });
+
 }
 void CoinXRWidget::prepareXrCompositionLayers()
 {
+    //session.getReferenceSpaceBoundsRect(xr::ReferenceSpaceType::Local, bounds);
     projectionLayer.viewCount = 2;
     projectionLayer.views = projectionLayerViews.data();
     layersPointers.push_back(&projectionLayer);
     // Finish setting up the layer submission
     xr::for_each_side_index([&](uint32_t eyeIndex) {
         auto& layerView = projectionLayerViews[eyeIndex];
-        layerView.subImage.swapchain = swapchains[eyeIndex];
-        layerView.subImage.imageRect.offset = {0, 0};
-        layerView.subImage.imageRect.extent = { static_cast<int32_t>(m_nRenderWidth), static_cast<int32_t>(m_nRenderHeight) };
+        layerView.subImage.swapchain = swapchain;
+        layerView.subImage.imageRect.extent = { static_cast<int32_t>(m_nRenderWidth) / 2, static_cast<int32_t>(m_nRenderHeight) };
+        if (eyeIndex == 1) {
+            layerView.subImage.imageRect.offset.x = layerView.subImage.imageRect.extent.width;
+        }
     });
 }
 
@@ -611,7 +615,8 @@ void CoinXRWidget::prepareControls()
 void CoinXRWidget::prepareScene()
 {
     m_sceneManager = new SoSceneManager();
-    m_sceneManager->setViewportRegion(SbViewportRegion(static_cast<short>(m_nRenderWidth), static_cast<short>(m_nRenderHeight)));
+    vpReg = SbViewportRegion(static_cast<short>(m_nRenderWidth), static_cast<short>(m_nRenderHeight));
+    m_sceneManager->setViewportRegion(vpReg);
     m_sceneManager->setBackgroundColor(SbColor(.0f, .0f, .8f));
 
     basePosition = SbVec3f(0.0f, 0.0f, 2.0f);
