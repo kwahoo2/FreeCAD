@@ -113,6 +113,7 @@ CoinXRWidget::~CoinXRWidget()
         instance.destroy();
         instance = nullptr;
     }
+
     delete m_sceneManager;
     format().setDefaultFormat(oldFormat);
     doneCurrent();
@@ -126,8 +127,7 @@ void CoinXRWidget::setBackgroundColor(const SbColor &Col)
 
 void CoinXRWidget::setSceneGraph(SoNode *sceneGraph)
 {
-    sGrp[0]->replaceChild(scene, sceneGraph);
-    sGrp[1]->replaceChild(scene, sceneGraph);
+    wSep->replaceChild(scene, sceneGraph);
     scene = sceneGraph;
 }
 
@@ -173,8 +173,6 @@ void CoinXRWidget::paintGL()
     if (quit) {
         return;
     }
-    makeCurrent();
-
     GLint oldfb;
     glGetIntegerv(GL_FRAMEBUFFER_BINDING, &oldfb);
 
@@ -232,8 +230,8 @@ void CoinXRWidget::paintGL()
             swapchain.releaseSwapchainImage(xr::SwapchainImageReleaseInfo{});
 
             update(); //schedule QOpenGL composition
-            doneCurrent();
         }
+        updateXrGui();
         qint64 et = eTimer.nsecsElapsed();
         eTimer.restart();
 
@@ -647,8 +645,30 @@ void CoinXRWidget::prepareScene()
 
     scene = new SoSeparator(0); // Placeholder.
 
+    wSep = new SoSeparator;
     worldTransform = new SoTransform(); //use for navigation in the world
     transfMod = new SoTransform(); //modifier of transformation
+
+    wSep->addChild(worldTransform);
+    wSep->addChild(scene);
+
+    //ray for picking objects
+    rayVtxs = new SoVertexProperty();
+    rayVtxs->vertex.set1Value(0, 0, 0, 0);  // Set first vertex, later update to center of the controller
+    rayVtxs->vertex.set1Value(1, 0, 0, 1);  // Set second vertex, later update to point of intersection ray with hit object
+    rayLine = new SoLineSet();
+    rayLine->vertexProperty = rayVtxs;
+    SoBaseColor * rayCol = new SoBaseColor; //blue sphere to show intersection point
+    rayCol->rgb = SbColor(1, 0, 0);
+    rSep = new SoSeparator();
+    rSep->addChild(rayCol);
+    rSep->addChild(rayLine); //only one controller will shoot the ray
+    sphTrans = new SoTranslation;
+    sphTrans->translation.setValue(0, 0, 0);
+    rSep->addChild(sphTrans);
+    raySph = new SoSphere;
+    raySph->radius.setValue(0.02f);
+    rSep->addChild(raySph);
 
     xr::for_each_side_index([&](uint32_t eyeIndex) {
         rootScene[eyeIndex] = new SoSeparator;
@@ -686,9 +706,11 @@ void CoinXRWidget::prepareScene()
         con1Sep[eyeIndex]->addChild(stickRotat[1]);
         con1Sep[eyeIndex]->addChild(conStick[1]);
 
+        //add ray for picking objects for each eye
+        sGrp[eyeIndex]->addChild(rSep);
+
         //add scene
-        sGrp[eyeIndex]->addChild(worldTransform);
-        sGrp[eyeIndex]->addChild(scene);
+        sGrp[eyeIndex]->addChild(wSep);
 
     });
 
@@ -876,7 +898,7 @@ void CoinXRWidget::updateXrControls()
         //float mat21 = 2*qy*qz+2*qx*qw;
         float mat22 = 1-2*qx*qx-2*qy*qy;
 
-        if (i == 0){
+        if (i == primaryConId){
             SbVec3f step = SbVec3f(0.0f, 0.0f, 0.0f);
             float z0 = mat02;
             float z1 = mat12;
@@ -885,7 +907,7 @@ void CoinXRWidget::updateXrControls()
             worldTransform->translation.setValue(worldTransform->translation.getValue() + step);
 
         }
-        if (i == 1){
+        if (i == secondaryConId){
             transfMod->center.setValue(conpos[i]);
             SbVec3f conXaxis = SbVec3f(mat00, mat10, mat20);
             SbVec3f conZaxis = SbVec3f(mat02, mat12, mat22);
@@ -896,12 +918,37 @@ void CoinXRWidget::updateXrControls()
             padrot.scaleAngle(0.5f * movSpeed);
             transfMod->rotation.setValue(padrot);
             worldTransform->combineRight(transfMod);
+            rayAxis = conZaxis;
         }
 
         //XRInteraction
         mXRi->setControllerState(i, worldTransform, conTrans[i], conRotat[i], currTriggerVal[i]);
     }
     mXRi->resumeThread();
+}
+
+void CoinXRWidget::updateXrGui()
+{
+
+    //picking ray
+    SbVec3f startVec = conTrans[secondaryConId]->translation.getValue();
+    SbVec3f endVec = conTrans[secondaryConId]->translation.getValue() - rayAxis;
+    SoRayPickAction conPickAction(vpReg);
+    conPickAction.setRay(startVec, - rayAxis, //direction is reversed controller Z axis
+                         nearPlane, farPlane);
+
+    rayVtxs->vertex.set1Value(0, startVec);
+    rayVtxs->vertex.set1Value(1, endVec);
+
+    conPickAction.apply(wSep); //traverse only the world, avoid picking controller gizmos or other non-world objects
+    const SoPickedPoint *pickedPoint = conPickAction.getPickedPoint();
+
+    if (pickedPoint != nullptr)
+    {
+        SbVec3f pickedPCoords = pickedPoint->getPoint();
+        sphTrans->translation.setValue(pickedPCoords);
+        rayVtxs->vertex.set1Value(1, pickedPCoords);
+    }
 }
 
 void CoinXRWidget::endXrFrame()
