@@ -90,7 +90,16 @@
 #include <Inventor/nodes/SoScale.h>
 #include <Inventor/nodes/SoCube.h>
 #include <Inventor/nodes/SoCylinder.h>
+#include <Inventor/nodes/SoSphere.h>
 #include <Inventor/nodes/SoTransform.h>
+
+#include <Inventor/nodes/SoLineSet.h>
+#include <Inventor/nodes/SoVertexProperty.h>
+#include <Inventor/nodes/SoScale.h>
+#include <Inventor/SbViewportRegion.h>
+#include <Inventor/actions/SoRayPickAction.h>
+#include <Inventor/SoPickedPoint.h>
+#include <Inventor/nodes/SoBaseColor.h>
 
 #include "XRInteraction.h"
 
@@ -102,6 +111,7 @@ class CoinXRWidget  : public QOpenGLWidget , protected QOpenGLFunctions_4_5_Core
     SoSeparator *rootScene[2];
     SoFrustumCamera *camera[2];
     SoNode *scene;
+    SoSeparator *wSep;
     SoTranslation *camTrans[2];
     SoGroup *cGrp[2];
     SoGroup *sGrp[2];
@@ -116,6 +126,13 @@ class CoinXRWidget  : public QOpenGLWidget , protected QOpenGLFunctions_4_5_Core
     SoTransform *transfMod;
     QSurfaceFormat oldFormat;
     SoSeparator *conMenuSep;
+
+    SoSeparator *rSep;
+    SoVertexProperty *rayVtxs;
+    SoLineSet *rayLine;
+    SbVec3f rayAxis;
+    SoSphere *raySph;
+    SoTranslation *sphTrans;
 
     bool quit{ false };
     static const uint32_t hands = 2;
@@ -152,6 +169,8 @@ class CoinXRWidget  : public QOpenGLWidget , protected QOpenGLFunctions_4_5_Core
     float scaleMod;
     float currTriggerVal[hands];
     QElapsedTimer eTimer; //measure time of frame
+    uint32_t primaryConId = 0; //left one one most systemes
+    uint32_t secondaryConId = 1;
 
     std::vector<xr::CompositionLayerBaseHeader*> layersPointers;
 
@@ -169,6 +188,7 @@ class CoinXRWidget  : public QOpenGLWidget , protected QOpenGLFunctions_4_5_Core
     void updateXrControls();
     void onSessionStateChanged(const xr::EventDataSessionStateChanged& sessionStateChangedEvent);
 
+    void updateXrGui();
     //XRInteraction
     XRInteraction *mXRi;
 
