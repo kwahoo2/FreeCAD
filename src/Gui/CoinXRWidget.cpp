@@ -44,6 +44,8 @@
 
 CoinXRWidget::CoinXRWidget() : QOpenGLWidget()
 {
+     mXRi = new XRInteraction();
+
     uint32_t flatScale = 2;
     QSurfaceFormat format;
     format = this->format();
@@ -72,10 +74,6 @@ CoinXRWidget::CoinXRWidget() : QOpenGLWidget()
     prepareXrCompositionLayers();
     prepareControls();
     prepareScene();
-
-    mXRi = new XRInteraction();
-    mXRi->pauseThread();
-    mXRi->start();
 
     eTimer.start();
 
@@ -113,7 +111,7 @@ CoinXRWidget::~CoinXRWidget()
         instance.destroy();
         instance = nullptr;
     }
-
+    delete  mXRi;
     delete m_sceneManager;
     format().setDefaultFormat(oldFormat);
     doneCurrent();
@@ -229,9 +227,7 @@ void CoinXRWidget::paintGL()
             Q_ASSERT(!glGetError());
             swapchain.releaseSwapchainImage(xr::SwapchainImageReleaseInfo{});
 
-            update(); //schedule QOpenGL composition
         }
-        updateXrGui();
         qint64 et = eTimer.nsecsElapsed();
         eTimer.restart();
 
@@ -242,6 +238,8 @@ void CoinXRWidget::paintGL()
             this->setWindowTitle(QString::fromStdString("FreeCAD OpenXR - Framerate: ") + QString::number(frt) + QString::fromStdString(" FPS"));
         }
         endXrFrame();
+        update(); //schedule QOpenGL composition
+        updateXrGui();
     }
 }
 
@@ -652,23 +650,7 @@ void CoinXRWidget::prepareScene()
     wSep->addChild(worldTransform);
     wSep->addChild(scene);
 
-    //ray for picking objects
-    rayVtxs = new SoVertexProperty();
-    rayVtxs->vertex.set1Value(0, 0, 0, 0);  // Set first vertex, later update to center of the controller
-    rayVtxs->vertex.set1Value(1, 0, 0, 1);  // Set second vertex, later update to point of intersection ray with hit object
-    rayLine = new SoLineSet();
-    rayLine->vertexProperty = rayVtxs;
-    SoBaseColor * rayCol = new SoBaseColor; //blue sphere to show intersection point
-    rayCol->rgb = SbColor(1, 0, 0);
-    rSep = new SoSeparator();
-    rSep->addChild(rayCol);
-    rSep->addChild(rayLine); //only one controller will shoot the ray
-    sphTrans = new SoTranslation;
-    sphTrans->translation.setValue(0, 0, 0);
-    rSep->addChild(sphTrans);
-    raySph = new SoSphere;
-    raySph->radius.setValue(0.02f);
-    rSep->addChild(raySph);
+    conMenuSep = new SoSeparator;
 
     xr::for_each_side_index([&](uint32_t eyeIndex) {
         rootScene[eyeIndex] = new SoSeparator;
@@ -693,28 +675,27 @@ void CoinXRWidget::prepareScene()
         con0Sep[eyeIndex] = new SoSeparator();
         con1Sep[eyeIndex] = new SoSeparator();
         sGrp[eyeIndex]->addChild(con0Sep[eyeIndex]);
-        con0Sep[eyeIndex]->addChild(conTrans[0]);
-        con0Sep[eyeIndex]->addChild(conRotat[0]);
-        con0Sep[eyeIndex]->addChild(conGizmo[0]);
-        //con0Sep[eyeIndex]->addChild(conMenuSep); //Menu container modified in XRInteraction
-        con0Sep[eyeIndex]->addChild(stickRotat[0]);
-        con0Sep[eyeIndex]->addChild(conStick[0]);
+        con0Sep[eyeIndex]->addChild(conTrans[primaryConId]);
+        con0Sep[eyeIndex]->addChild(conRotat[primaryConId]);
+        con0Sep[eyeIndex]->addChild(conGizmo[primaryConId]);
+        con0Sep[eyeIndex]->addChild(conMenuSep); //menu follows controller placement
+        con0Sep[eyeIndex]->addChild(stickRotat[primaryConId]);
+        con0Sep[eyeIndex]->addChild(conStick[primaryConId]);
         sGrp[eyeIndex]->addChild(con1Sep[eyeIndex]);
-        con1Sep[eyeIndex]->addChild(conTrans[1]);
-        con1Sep[eyeIndex]->addChild(conRotat[1]);
-        con1Sep[eyeIndex]->addChild(conGizmo[1]);
-        con1Sep[eyeIndex]->addChild(stickRotat[1]);
-        con1Sep[eyeIndex]->addChild(conStick[1]);
+        con1Sep[eyeIndex]->addChild(conTrans[secondaryConId]);
+        con1Sep[eyeIndex]->addChild(conRotat[secondaryConId]);
+        con1Sep[eyeIndex]->addChild(conGizmo[secondaryConId]);
+        con1Sep[eyeIndex]->addChild(stickRotat[secondaryConId]);
+        con1Sep[eyeIndex]->addChild(conStick[secondaryConId]);
 
         //add ray for picking objects for each eye
-        sGrp[eyeIndex]->addChild(rSep);
+        sGrp[eyeIndex]->addChild(mXRi->getRaySeparator());
 
         //add scene
         sGrp[eyeIndex]->addChild(wSep);
 
     });
-
-    //mXRi->setMenuSeparator(conMenuSep); //This will be modified in XRInteraction object
+    conMenuSep->addChild(mXRi->getMenuSeparator());//Menu container modified in XRInteraction
 }
 
 void CoinXRWidget::pollXrEvents()
@@ -924,31 +905,38 @@ void CoinXRWidget::updateXrControls()
         //XRInteraction
         mXRi->setControllerState(i, worldTransform, conTrans[i], conRotat[i], currTriggerVal[i]);
     }
-    mXRi->resumeThread();
 }
 
 void CoinXRWidget::updateXrGui()
 {
-
     //picking ray
     SbVec3f startVec = conTrans[secondaryConId]->translation.getValue();
     SbVec3f endVec = conTrans[secondaryConId]->translation.getValue() - rayAxis;
-    SoRayPickAction conPickAction(vpReg);
-    conPickAction.setRay(startVec, - rayAxis, //direction is reversed controller Z axis
-                         nearPlane, farPlane);
 
-    rayVtxs->vertex.set1Value(0, startVec);
-    rayVtxs->vertex.set1Value(1, endVec);
+    SoSeparator *menuRoot = new SoSeparator; //build a tree just for menu picking
+    menuRoot->addChild(conTrans[primaryConId]);
+    menuRoot->addChild(conRotat[primaryConId]);
+    menuRoot->addChild(camera[0]);
+    menuRoot->addChild(conMenuSep);
 
-    conPickAction.apply(wSep); //traverse only the world, avoid picking controller gizmos or other non-world objects
-    const SoPickedPoint *pickedPoint = conPickAction.getPickedPoint();
-
-    if (pickedPoint != nullptr)
+    if (mXRi->findPickedObject(menuRoot, vpReg,
+                           startVec, endVec, rayAxis,
+                           nearPlane, farPlane))
     {
-        SbVec3f pickedPCoords = pickedPoint->getPoint();
-        sphTrans->translation.setValue(pickedPCoords);
-        rayVtxs->vertex.set1Value(1, pickedPCoords);
+          //place for menu operations
+
     }
+    else
+    {
+    //if menu not hit, check the scene
+    mXRi->findPickedObject(wSep, vpReg,
+                           startVec, endVec, rayAxis,
+                           nearPlane, farPlane);
+    }
+
+    //prepare and execute commands
+    mXRi->applyInput();
+
 }
 
 void CoinXRWidget::endXrFrame()
@@ -971,8 +959,6 @@ void CoinXRWidget::endXrFrame()
 void CoinXRWidget::quitRendering()
 {
     quit = true;
-    mXRi->resumeThread();
-    mXRi->stop();
     Base::Console().Warning("XR rendering stopped \n");
 }
 
