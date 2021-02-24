@@ -1,36 +1,91 @@
+/**************************************************************************\
+* Copyright (c) 2021 Adrian Przekwas <adrian.v.przekwas@gmail.com>
+*
+* All rights reserved.
+*
+* Redistribution and use in source and binary forms, with or without
+* modification, are permitted provided that the following conditions are
+* met:
+*
+* Redistributions of source code must retain the above copyright notice,
+* this list of conditions and the following disclaimer.
+*
+* Redistributions in binary form must reproduce the above copyright
+* notice, this list of conditions and the following disclaimer in the
+* documentation and/or other materials provided with the distribution.
+*
+* Neither the name of the copyright holder nor the names of its
+* contributors may be used to endorse or promote products derived from
+* this software without specific prior written permission.
+*
+* THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+* "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+* LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+* A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+* HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+* SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+* LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+* DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+* THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+* (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+* OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+\**************************************************************************/
+
 #include "PreCompiled.h"
 #include "XRInteraction.h"
 
-#include "Base/Exception.h"
-#include <Base/Console.h>
 
-#include <Command.h>
-#include "Application.h"
-#include "Document.h"
-
-
-XRInteraction::XRInteraction() : QThread()
+XRInteraction::XRInteraction()
 {
+    doc = App::GetApplication().getActiveDocument();
+    cmd = QString::fromLatin1("import Part, math");
+    Gui::Command::doCommand(Gui::Command::Doc, cmd.toUtf8());
+
+    //menu
+    menuSep = new SoSeparator;
+    menuSep->ref();
+    SoTranslation *menuTrans = new SoTranslation;
+    menuTrans->translation.setValue(SbVec3f(0.0f, 0.12f,-0.15f));
+    menuSep->addChild(menuTrans);
+    menuCube = new SoCube();
+    menuCube->width.setValue(0.2f);
+    menuCube->height.setValue(0.2f);
+    menuCube->depth.setValue(0.001f);
+    menuSep->addChild(menuCube);
+    SoTranslation *textTrans = new SoTranslation;
+    textTrans->translation.setValue(SbVec3f(0.0f, 0.1f,0.01f));
+    menuSep->addChild(textTrans);
+    menuText = new SoText3;
+    SoScale * textScale = new SoScale;
+    textScale->scaleFactor.setValue(SbVec3f(0.01f, 0.01f, 0.01f));
+    menuText->string = "test";
+    menuSep->addChild(textScale);
+    menuSep->addChild(menuText);
+
+
+    //ray for picking objects
+    rSep = new SoSeparator();
+    rSep->ref();
+    rayVtxs = new SoVertexProperty();
+    rayVtxs->vertex.set1Value(0, 0, 0, 0);  // Set first vertex, later update to center of the controller
+    rayVtxs->vertex.set1Value(1, 0, 0, 1);  // Set second vertex, later update to point of intersection ray with hit object
+    rayLine = new SoLineSet();
+    rayLine->vertexProperty = rayVtxs;
+    SoBaseColor * rayCol = new SoBaseColor; //blue sphere to show intersection point
+    rayCol->rgb = SbColor(1, 0, 0);
+    rSep->addChild(rayCol);
+    rSep->addChild(rayLine); //only one controller will shoot the ray
+    sphTrans = new SoTranslation;
+    sphTrans->translation.setValue(0, 0, 0);
+    rSep->addChild(sphTrans);
+    raySph = new SoSphere;
+    raySph->radius.setValue(0.02f);
+    rSep->addChild(raySph);
 
 }
 
-void XRInteraction::run()
+void XRInteraction::applyInput()
 {
-
-    uint32_t objCount = 0;
-    App::Document* doc = App::GetApplication().getActiveDocument();
-    QString cmd = QString::fromLatin1("import Part, math");
-    Gui::Command::doCommand(Gui::Command::Doc, cmd.toUtf8());
-
-    while (!worker_stopped)
-    {
-        sync.lock();
-        if(pause)
-        {
-            pauseCond.wait(&sync); // pause until resume called from CoinXRWidget
-        }
-        sync.unlock();
-
         for (uint32_t i = 0; i < hands; i++){
             if (currTriggerVal[i] > 0.5 && oldTriggerVal[i] <= 0.5)
                 {
@@ -70,11 +125,13 @@ void XRInteraction::run()
                 Gui::Command::doCommand(Gui::Command::Doc, cmd.toUtf8());
                 //doc->recompute();
                 objCount++;
+
+                std::string s = "Cube " + std::to_string(objCount);
+                menuText->string = s.c_str();
             }
             oldTriggerVal[i] = currTriggerVal[i];
         }
-        pauseThread(); //do only one loop and wait for unlock
-    }
+
 }
 
 void XRInteraction::setControllerState(uint32_t id, const SoTransform *wt, const SoTranslation *st, const SoRotation *sr, float tv)
@@ -93,27 +150,44 @@ void XRInteraction::setControllerState(uint32_t id, const SoTransform *wt, const
                            conTrans[id]->translation.getValue()[0], conTrans[id]->translation.getValue()[1], conTrans[id]->translation.getValue()[2]);*/
 }
 
-void XRInteraction::setMenuSeparator(SoSeparator *cs)
+SoSeparator * XRInteraction::getMenuSeparator()
 {
-    //conMenuSep = cs;
-
-    SoCylinder *menuSupport = new SoCylinder();
-    menuSupport->radius.setValue(100.0f);
-    menuSupport->height.setValue(50.0f);
-    //conMenuSep->addChild(menuSupport);
+    return menuSep;
 }
 
-void XRInteraction::resumeThread()
+SoSeparator * XRInteraction::getRaySeparator()
 {
-    sync.lock();
-    pause = false;
-    sync.unlock();
-    pauseCond.wakeAll();
+    return rSep;
 }
 
-void XRInteraction::pauseThread()
+const SoPickedPoint * XRInteraction::findPickedObject(SoSeparator *sep, SbViewportRegion vpReg,
+                                     SbVec3f startVec, SbVec3f endVec, SbVec3f rayAxis,
+                                     float nearPlane, float farPlane)
 {
-    sync.lock();
-    pause = true;
-    sync.unlock();
+    //picking ray
+    SoRayPickAction conPickAction(vpReg);
+    conPickAction.setRay(startVec, - rayAxis, //direction is reversed controller Z axis
+                         nearPlane, farPlane);
+
+    rayVtxs->vertex.set1Value(0, startVec);
+    rayVtxs->vertex.set1Value(1, endVec);
+
+    conPickAction.apply(sep); //traverse only the world, avoid picking controller gizmos or other non-world objects
+    const SoPickedPoint *pickedPoint = conPickAction.getPickedPoint();
+
+    if (pickedPoint != nullptr)
+    {
+        SbVec3f pickedPCoords = pickedPoint->getPoint();
+        sphTrans->translation.setValue(pickedPCoords);
+        rayVtxs->vertex.set1Value(1, pickedPCoords);
+
+    }
+    return pickedPoint;
+}
+
+
+XRInteraction::~XRInteraction()
+{
+    menuSep->unref();
+    rSep->unref();
 }

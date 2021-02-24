@@ -90,16 +90,8 @@
 #include <Inventor/nodes/SoScale.h>
 #include <Inventor/nodes/SoCube.h>
 #include <Inventor/nodes/SoCylinder.h>
-#include <Inventor/nodes/SoSphere.h>
 #include <Inventor/nodes/SoTransform.h>
 
-#include <Inventor/nodes/SoLineSet.h>
-#include <Inventor/nodes/SoVertexProperty.h>
-#include <Inventor/nodes/SoScale.h>
-#include <Inventor/SbViewportRegion.h>
-#include <Inventor/actions/SoRayPickAction.h>
-#include <Inventor/SoPickedPoint.h>
-#include <Inventor/nodes/SoBaseColor.h>
 
 #include "XRInteraction.h"
 
@@ -126,13 +118,7 @@ class CoinXRWidget  : public QOpenGLWidget , protected QOpenGLFunctions_4_5_Core
     SoTransform *transfMod;
     QSurfaceFormat oldFormat;
     SoSeparator *conMenuSep;
-
-    SoSeparator *rSep;
-    SoVertexProperty *rayVtxs;
-    SoLineSet *rayLine;
     SbVec3f rayAxis;
-    SoSphere *raySph;
-    SoTranslation *sphTrans;
 
     bool quit{ false };
     static const uint32_t hands = 2;
