@@ -231,7 +231,7 @@ void CoinXRWidget::paintGL()
         qint64 et = eTimer.nsecsElapsed();
         eTimer.restart();
 
-        movSpeed = et * 0.000000005f;
+        movSpeed = static_cast<float>(et) * 0.000000005f;
         if (et > 0)
         {
             qint64 frt = 1000000000 / et;
@@ -647,7 +647,7 @@ void CoinXRWidget::prepareScene()
     worldTransform = new SoTransform(); //use for navigation in the world
     transfMod = new SoTransform(); //modifier of transformation
 
-    wSep->addChild(worldTransform);
+    //wSep->addChild(worldTransform);
     wSep->addChild(scene);
 
     conMenuSep = new SoSeparator;
@@ -764,8 +764,20 @@ void CoinXRWidget::updateXrViews()
 
         SbRotation hmdrot = SbRotation(viewState.pose.orientation.x, viewState.pose.orientation.y, viewState.pose.orientation.z, viewState.pose.orientation.w);
         SbVec3f hmdpos = SbVec3f(viewState.pose.position.x, viewState.pose.position.y, viewState.pose.position.z); //get global position and orientation for both cameras
-        camera[eyeIndex]->orientation.setValue(hmdrot);
-        camera[eyeIndex]->position.setValue(basePosition + hmdpos);
+
+        SoTransform *camTransform = new SoTransform();
+        camTransform->translation.setValue(worldTransform->translation.getValue()); //transfer values only
+        camTransform->rotation.setValue(worldTransform->rotation.getValue());
+        camTransform->center.setValue(worldTransform->center.getValue());
+
+        SoTransform *hmdTransf = new SoTransform();
+        hmdTransf->translation.setValue(hmdpos);
+        hmdTransf->rotation.setValue(hmdrot);
+
+        camTransform->combineLeft(hmdTransf); //combine real hmd and arificial (stick-driven) camera movement
+
+        camera[eyeIndex]->orientation.setValue(camTransform->rotation.getValue());
+        camera[eyeIndex]->position.setValue(camTransform->translation.getValue());
 
         float pfLeft = tan(viewState.fov.angleLeft);
         float pfRight = tan(viewState.fov.angleRight);
@@ -828,8 +840,22 @@ void CoinXRWidget::updateXrControls()
                                spaceLocation[i].pose.orientation.z, spaceLocation[i].pose.orientation.w);
         conpos[i] = SbVec3f(spaceLocation[i].pose.position.x, spaceLocation[i].pose.position.y,
                             spaceLocation[i].pose.position.z);
-        conTrans[i]->translation.setValue(conpos[i] + basePosition);
-        conRotat[i]->rotation.setValue(conrot[i]);
+
+
+
+        SoTransform *conTransform = new SoTransform();
+        conTransform->translation.setValue(worldTransform->translation.getValue());
+        conTransform->rotation.setValue(worldTransform->rotation.getValue());
+        conTransform->center.setValue(worldTransform->center.getValue());
+
+        SoTransform *localConTransf = new SoTransform();
+        localConTransf->translation.setValue(conpos[i]);
+        localConTransf->rotation.setValue(conrot[i]);
+        conTransform->combineLeft(localConTransf); //combine real hmd and arificial (stick-driven) movement
+
+        conTrans[i]->translation.setValue(conTransform->translation.getValue());
+        conRotat[i]->rotation.setValue(conTransform->rotation.getValue());
+
 
         //analog sticks
         getInfo.action = xLeverAction;
@@ -863,10 +889,10 @@ void CoinXRWidget::updateXrControls()
         xrot->getRotation();
         stickRotat[i]->rotation.setValue(xrot->getRotation() * yrot->getRotation());
 
-        float qx = spaceLocation[i].pose.orientation.x;
-        float qy = spaceLocation[i].pose.orientation.y;
-        float qz = spaceLocation[i].pose.orientation.z;
-        float qw = spaceLocation[i].pose.orientation.w;
+        float qx = conRotat[i]->rotation.getValue()[0];
+        float qy = conRotat[i]->rotation.getValue()[1];
+        float qz = conRotat[i]->rotation.getValue()[2];
+        float qw = conRotat[i]->rotation.getValue()[3];
 
         //https://www.euclideanspace.com/maths/geometry/rotations/conversions/quaternionToMatrix/index.htm
         float mat00 = 1-2*qy*qy-2*qz*qz;
@@ -884,7 +910,7 @@ void CoinXRWidget::updateXrControls()
             float z0 = mat02;
             float z1 = mat12;
             float z2 = mat22;
-            step = SbVec3f(yaxis * z0 * movSpeed, yaxis * z1 * movSpeed, yaxis * z2 * movSpeed);
+            step = SbVec3f(-yaxis * z0 * movSpeed, -yaxis * z1 * movSpeed, -yaxis * z2 * movSpeed);
             worldTransform->translation.setValue(worldTransform->translation.getValue() + step);
 
         }
@@ -892,8 +918,8 @@ void CoinXRWidget::updateXrControls()
             transfMod->center.setValue(conpos[i]);
             SbVec3f conXaxis = SbVec3f(mat00, mat10, mat20);
             SbVec3f conZaxis = SbVec3f(mat02, mat12, mat22);
-            SbRotation conXrot = SbRotation(conXaxis, yaxis); //stick moves world around one of controller axes
-            SbRotation conZrot = SbRotation(conZaxis, xaxis);
+            SbRotation conXrot = SbRotation(conXaxis, -yaxis); //stick moves world around one of controller axes
+            SbRotation conZrot = SbRotation(conZaxis, -xaxis);
             SbRotation padrot = SbRotation();
             padrot = conXrot * conZrot;
             padrot.scaleAngle(0.5f * movSpeed);
