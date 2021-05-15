@@ -436,6 +436,7 @@ void CoinXRWidget::prepareControls()
     for (uint32_t i = 0; i < hands; i++)
     {
         currTriggerVal[i] = 0.0f;
+        oldTriggerVal[i] = 0.0f;
     }
 
     xr::ActionSetCreateInfo actionSetInfo{ };
@@ -929,39 +930,59 @@ void CoinXRWidget::updateXrControls()
         }
 
         //XRInteraction
-        mXRi->setControllerState(i, worldTransform, conTrans[i], conRotat[i], currTriggerVal[i]);
+        mXRi->setControllerState(i, conTrans[i], conRotat[i], currTriggerVal[i]);
+    }
+
+    if (((currTriggerVal[0] > 0.2 && oldTriggerVal[0] <= 0.2) && (currTriggerVal[1] > 0.2))
+           || ((currTriggerVal[1] > 0.2 && oldTriggerVal[1] <= 0.2) && (currTriggerVal[0] > 0.2))) //enable or disable Interaction
+    {
+        if (interaction)
+        {
+            interaction = false;
+        }
+        else
+        {
+            interaction = true;
+        }
+    }
+    for (uint32_t i = 0; i < hands; i++)
+    {
+        oldTriggerVal[i] = currTriggerVal[i];
     }
 }
 
 void CoinXRWidget::updateXrGui()
 {
-    //picking ray
-    SbVec3f startVec = conTrans[secondaryConId]->translation.getValue();
-    SbVec3f endVec = conTrans[secondaryConId]->translation.getValue() - rayAxis;
-
-    SoSeparator *menuRoot = new SoSeparator; //build a tree just for menu picking
-    menuRoot->addChild(conTrans[primaryConId]);
-    menuRoot->addChild(conRotat[primaryConId]);
-    menuRoot->addChild(camera[0]);
-    menuRoot->addChild(conMenuSep);
-
-    if (mXRi->findPickedObject(menuRoot, vpReg,
-                           startVec, endVec, rayAxis,
-                           nearPlane, farPlane))
+    if (interaction)
     {
-          //place for menu operations
+        //picking ray
+        SbVec3f startVec = conTrans[secondaryConId]->translation.getValue();
+        SbVec3f endVec = conTrans[secondaryConId]->translation.getValue() - rayAxis;
 
-    }
-    else
-    {
-    //if menu not hit, check the scene
-    mXRi->findPickedObject(wSep, vpReg,
-                           startVec, endVec, rayAxis,
-                           nearPlane, farPlane);
-    }
+        SoSeparator *menuRoot = new SoSeparator; //build a tree just for menu picking
+        menuRoot->addChild(conTrans[primaryConId]);
+        menuRoot->addChild(conRotat[primaryConId]);
+        menuRoot->addChild(camera[0]);
+        menuRoot->addChild(conMenuSep);
 
-    //prepare and execute commands
-    mXRi->applyInput();
+        if (mXRi->findPickedObject(menuRoot, vpReg,
+                               startVec, endVec, rayAxis,
+                               nearPlane, farPlane))
+        {
+              //place for menu operations
+
+        }
+        else
+        {
+        //if menu not hit, check the scene
+        mXRi->findPickedObject(wSep, vpReg,
+                               startVec, endVec, rayAxis,
+                               nearPlane, farPlane);
+        }
+
+        //prepare and execute commands
+        mXRi->applyInput();
+    }
 
 }
 

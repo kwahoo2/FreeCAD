@@ -57,8 +57,8 @@ XRInteraction::XRInteraction()
     menuSep->addChild(textTrans);
     menuText = new SoText3;
     SoScale * textScale = new SoScale;
-    textScale->scaleFactor.setValue(SbVec3f(0.01f, 0.01f, 0.01f));
-    menuText->string = "test";
+    textScale->scaleFactor.setValue(SbVec3f(0.005f, 0.005f, 0.005f));
+    menuText->string = "Press triggers to enable ray";
     menuSep->addChild(textScale);
     menuSep->addChild(menuText);
 
@@ -87,7 +87,7 @@ XRInteraction::XRInteraction()
 void XRInteraction::applyInput()
 {
         for (uint32_t i = 0; i < hands; i++){
-            if (currTriggerVal[i] > 0.5 && oldTriggerVal[i] <= 0.5)
+            if (currTriggerVal[i] > 0.9 && oldTriggerVal[i] <= 0.9)
                 {
 
                 double l = 200.0;
@@ -110,12 +110,10 @@ void XRInteraction::applyInput()
                 .arg(l)
                 .arg(w)
                 .arg(h)
-                 /*meters to milimeters conversion
-                  * TODO world transformation, translation only so far
-                  *rotation using controller stick will put the box i wrong place*/
-                .arg((conTransVec[i][0] - wTransVec[0]) * 1000)
-                .arg((conTransVec[i][1] - wTransVec[1]) * 1000)
-                .arg((conTransVec[i][2] - wTransVec[2]) * 1000)
+                 /*meters to milimeters conversion*/
+                .arg((conTransVec[i][0]) * 1000)
+                .arg((conTransVec[i][1]) * 1000)
+                .arg((conTransVec[i][2]) * 1000)
                 .arg(conRotatQuat[i][0])
                 .arg(conRotatQuat[i][1])
                 .arg(conRotatQuat[i][2])
@@ -134,20 +132,12 @@ void XRInteraction::applyInput()
 
 }
 
-void XRInteraction::setControllerState(uint32_t id, const SoTransform *wt, const SoTranslation *st, const SoRotation *sr, float tv)
+void XRInteraction::setControllerState(uint32_t id, const SoTranslation *st, const SoRotation *sr, float tv)
 {
     conTransVec[id] = st->translation.getValue();
     conRotatQuat[id] = sr->rotation.getValue();
     currTriggerVal[id] = tv;
 
-    wTransVec = wt->translation.getValue(); //take note of worldtranformation, world can be moved relative to physical position
-    wCenter = wt->center.getValue();
-    wRotatQuat = wt->rotation.getValue();
-    //wRotatQuat.invert();
-
-    /*Base::Console().Warning("Hand pose %d: %f %f %f %f, %f %f %f\n", id,
-                           conRotat[id]->rotation.getValue()[0], conRotat[id]->rotation.getValue()[1],conRotat[id]->rotation.getValue()[2],conRotat[id]->rotation.getValue()[3],
-                           conTrans[id]->translation.getValue()[0], conTrans[id]->translation.getValue()[1], conTrans[id]->translation.getValue()[2]);*/
 }
 
 SoSeparator * XRInteraction::getMenuSeparator()
