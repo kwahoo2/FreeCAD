@@ -65,7 +65,7 @@ public:
     ~XRInteraction();
 
     void applyInput();
-    void setControllerState(uint32_t id, const SoTransform *wt, const SoTranslation *st, const SoRotation *sr, float tv);
+    void setControllerState(uint32_t id, const SoTranslation *st, const SoRotation *sr, float tv);
     SoSeparator * getMenuSeparator();
     SoSeparator * getRaySeparator();
     const SoPickedPoint * findPickedObject(SoSeparator *sep, SbViewportRegion vpReg,
@@ -79,9 +79,6 @@ private:
     float oldTriggerVal[hands];
     SbVec3f conTransVec[hands];
     SbRotation conRotatQuat[hands];
-    SbVec3f wTransVec;
-    SbVec3f wCenter;
-    SbRotation wRotatQuat;
 
     QString cmd;
     uint32_t objCount = 0;
