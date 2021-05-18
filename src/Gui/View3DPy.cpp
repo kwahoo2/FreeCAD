@@ -153,6 +153,11 @@ void View3DInventorPy::init_type()
         "dictionary also contains the coordinates of the appropriate 3d point of\n"
         "the underlying geometry in the scenegraph.\n"
         "If no geometry was found 'None' is returned, instead.\n");
+    add_varargs_method("getObjectInfoPP",&View3DInventorPy::getObjectInfoPP,
+        "getObjectInfoPP(SoPickedPoint) -> dictionary or None\n"
+        "\n"
+        "Return a dictionary with the name of document, object and component."
+        "If no geometry was found 'None' is returned, instead.\n");
     add_varargs_method("getObjectsInfo",&View3DInventorPy::getObjectsInfo,
         "getObjectsInfo(tuple(int,int), [pick_radius]) -> dictionary or None\n"
         "\n"
@@ -1384,6 +1389,96 @@ Py::Object View3DInventorPy::getObjectInfo(const Py::Tuple& args)
     catch (const Py::Exception&) {
         throw;
     }
+}
+
+Py::Object View3DInventorPy::getObjectInfoPP(const Py::Tuple& args)
+{
+     PyObject *obj;
+     Py::Object ret = Py::None();
+     if (!PyArg_ParseTuple(args.ptr(), "O",&obj))
+         return ret;
+     void *ptr = nullptr;
+     Base::Interpreter().convertSWIGPointerObj("pivy.coin", "_p_SoPickedPoint", obj, &ptr, 0);
+     SoPickedPoint *Point = reinterpret_cast<SoPickedPoint*>(ptr);
+     if(!Point) {
+         throw Base::TypeError("type must be of coin.SoPickedPoint");
+     }
+
+     else {
+        Py::Dict dict;
+        SbVec3f pt = Point->getPoint();
+        dict.setItem("x", Py::Float(pt[0]));
+        dict.setItem("y", Py::Float(pt[1]));
+        dict.setItem("z", Py::Float(pt[2]));
+
+        Gui::Document* doc = _view->getViewer()->getDocument();
+        ViewProvider *vp = doc ? doc->getViewProviderByPathFromHead(Point->getPath())
+                : _view->getViewer()->getViewProviderByPath(Point->getPath());
+        if(vp && vp->isDerivedFrom(ViewProviderDocumentObject::getClassTypeId())) {
+            if(!vp->isSelectable())
+                return ret;
+            ViewProviderDocumentObject* vpd = static_cast<ViewProviderDocumentObject*>(vp);
+            if(vp->useNewSelectionModel()) {
+                std::string subname;
+                if(!vp->getElementPicked(Point,subname))
+                    return ret;
+                auto obj = vpd->getObject();
+                if(!obj)
+                    return ret;
+                if(subname.size()) {
+                    std::pair<std::string,std::string> elementName;
+                    auto sobj = App::GeoFeature::resolveElement(obj,subname.c_str(),elementName);
+                    if(!sobj)
+                        return ret;
+                    if(sobj!=obj) {
+                        dict.setItem("ParentObject",Py::Object(obj->getPyObject(),true));
+                        dict.setItem("SubName",Py::String(subname));
+                        obj = sobj;
+                    }
+                    subname = elementName.second.size()?elementName.second:elementName.first;
+                }
+                dict.setItem("Document",
+                    Py::String(obj->getDocument()->getName()));
+                dict.setItem("Object",
+                    Py::String(obj->getNameInDocument()));
+                dict.setItem("Component",Py::String(subname));
+            } else {
+                dict.setItem("Document",
+                    Py::String(vpd->getObject()->getDocument()->getName()));
+                dict.setItem("Object",
+                    Py::String(vpd->getObject()->getNameInDocument()));
+                // search for a SoFCSelection node
+                SoFCDocumentObjectAction objaction;
+                objaction.apply(Point->getPath());
+                if (objaction.isHandled()) {
+                    dict.setItem("Component",
+                        Py::String(objaction.componentName.getString()));
+                }
+            }
+
+            // ok, found the node of interest
+            ret = dict;
+        }
+        else {
+            // custom nodes not in a VP: search for a SoFCSelection node
+            SoFCDocumentObjectAction objaction;
+            objaction.apply(Point->getPath());
+            if (objaction.isHandled()) {
+                dict.setItem("Document",
+                    Py::String(objaction.documentName.getString()));
+                dict.setItem("Object",
+                    Py::String(objaction.objectName.getString()));
+                dict.setItem("Component",
+                    Py::String(objaction.componentName.getString()));
+                // ok, found the node of interest
+                ret = dict;
+            }
+
+        }
+
+    }
+
+    return ret;
 }
 
 Py::Object View3DInventorPy::getObjectsInfo(const Py::Tuple& args)
