@@ -64,13 +64,15 @@ public:
     explicit XRInteraction();
     ~XRInteraction();
 
-    void applyInput();
+    void applyInput(uint32_t conId);
     void setControllerState(uint32_t id, const SoTranslation *st, const SoRotation *sr, float tv);
     SoSeparator * getMenuSeparator();
     SoSeparator * getRaySeparator();
     const SoPickedPoint * findPickedObject(SoSeparator *sep, SbViewportRegion vpReg,
                           SbVec3f startVec, SbVec3f endVec, SbVec3f rayAxis,
                           float nearPlane, float farPlane);
+    void getPickedObjectInfo(const SoPickedPoint *Point, uint32_t conId);
+    void pickMenuItem(const SoPickedPoint *Point, uint32_t conId);
 
 private:
 
@@ -93,7 +95,10 @@ private:
 
     SoSeparator *menuSep;
     SoText3 *menuText;
+    SoText3 *menuTextLine0;
+    SoText3 *menuTextLine1;
     SoCube *menuCube;
+
 };
 
 #endif // GUI_XRInteraction
