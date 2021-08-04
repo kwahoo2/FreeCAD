@@ -33,12 +33,17 @@
 
 #include "PreCompiled.h"
 #include "XRInteraction.h"
-
+#include <View3DInventor.h>
+#include <View3DInventorViewer.h>
+#include <ViewProvider.h>
+#include "ViewProviderDocumentObject.h"
+#include "ViewProviderExtern.h"
 
 XRInteraction::XRInteraction()
 {
     doc = App::GetApplication().getActiveDocument();
-    cmd = QString::fromLatin1("import Part, math");
+
+    cmd = QString::fromLatin1("import Part, math, pivy");
     Gui::Command::doCommand(Gui::Command::Doc, cmd.toUtf8());
 
     //menu
@@ -47,21 +52,32 @@ XRInteraction::XRInteraction()
     SoTranslation *menuTrans = new SoTranslation;
     menuTrans->translation.setValue(SbVec3f(0.0f, 0.12f,-0.15f));
     menuSep->addChild(menuTrans);
-    menuCube = new SoCube();
+    /*menuCube = new SoCube();
     menuCube->width.setValue(0.2f);
     menuCube->height.setValue(0.2f);
     menuCube->depth.setValue(0.001f);
-    menuSep->addChild(menuCube);
+    menuSep->addChild(menuCube);*/
     SoTranslation *textTrans = new SoTranslation;
     textTrans->translation.setValue(SbVec3f(0.0f, 0.1f,0.01f));
     menuSep->addChild(textTrans);
-    menuText = new SoText3;
+    menuText = new SoText3; //this is status bar
     SoScale * textScale = new SoScale;
     textScale->scaleFactor.setValue(SbVec3f(0.005f, 0.005f, 0.005f));
     menuText->string = "Press triggers to enable ray";
     menuSep->addChild(textScale);
     menuSep->addChild(menuText);
 
+    SoTranslation *lineSpacing = new SoTranslation;
+    lineSpacing->translation.setValue(SbVec3f(0.0f, -10.0f, 0.0f));
+    menuSep->addChild(lineSpacing);
+    menuTextLine0 = new SoText3; //this menu item
+    menuTextLine0->string = "Menu Item 0";
+    menuSep->addChild(menuTextLine0);
+    menuSep->addChild(lineSpacing);
+    menuTextLine1 = new SoText3; //this menu item
+    menuTextLine1->string = "Menu Item 1";
+    menuSep->addChild(menuTextLine1);
+    menuSep->addChild(lineSpacing);
 
     //ray for picking objects
     rSep = new SoSeparator();
@@ -84,53 +100,96 @@ XRInteraction::XRInteraction()
 
 }
 
-void XRInteraction::applyInput()
+void XRInteraction::applyInput(uint32_t conId)
 {
-        for (uint32_t i = 0; i < hands; i++){
-            if (currTriggerVal[i] > 0.9 && oldTriggerVal[i] <= 0.9)
-                {
+        if (currTriggerVal[conId] > 0.9f && oldTriggerVal[conId] <= 0.9f)
+            {
 
-                double l = 200.0;
-                double w = 100.0;
-                double h = 500.0;
+            double l = 200.0;
+            double w = 100.0;
+            double h = 500.0;
 
-                cmd = QString::fromLatin1("box%1 = App.getDocument('%2').addObject('%3','%4')\n"
-                "box%1.Length = %5\n"
-                "box%1.Width = %6\n"
-                "box%1.Height = %7\n"
-                "q = (%11, %12, %13, %14)\n"
-                "r=FreeCAD.Rotation(*q)\n"
-                "box%1.Placement.rotate(App.Vector(0, 0, 0), r.Axis, r.Angle*180/math.pi)\n"
-                "box%1.Placement.move(App.Vector(%8, %9, %10))\n"
-                )
-                .arg(QString::number(objCount))
-                .arg(QString::fromLatin1(doc->getName()))
-                .arg(QString::fromLatin1("Part::Box"))
-                .arg(QString::fromLatin1("Cube") + QString::number(objCount))
-                .arg(l)
-                .arg(w)
-                .arg(h)
-                 /*meters to milimeters conversion*/
-                .arg((conTransVec[i][0]) * 1000)
-                .arg((conTransVec[i][1]) * 1000)
-                .arg((conTransVec[i][2]) * 1000)
-                .arg(conRotatQuat[i][0])
-                .arg(conRotatQuat[i][1])
-                .arg(conRotatQuat[i][2])
-                .arg(conRotatQuat[i][3]);
+            cmd = QString::fromLatin1("box%1 = App.getDocument('%2').addObject('%3','%4')\n"
+            "box%1.Length = %5\n"
+            "box%1.Width = %6\n"
+            "box%1.Height = %7\n"
+            "q = (%11, %12, %13, %14)\n"
+            "r=FreeCAD.Rotation(*q)\n"
+            "box%1.Placement.rotate(App.Vector(0, 0, 0), r.Axis, r.Angle*180/math.pi)\n"
+            "box%1.Placement.move(App.Vector(%8, %9, %10))\n"
+            )
+            .arg(QString::number(objCount))
+            .arg(QString::fromLatin1(doc->getName()))
+            .arg(QString::fromLatin1("Part::Box"))
+            .arg(QString::fromLatin1("Cube") + QString::number(objCount))
+            .arg(l)
+            .arg(w)
+            .arg(h)
+             /*meters to milimeters conversion*/
+            .arg((conTransVec[conId][0]) * 1000)
+            .arg((conTransVec[conId][1]) * 1000)
+            .arg((conTransVec[conId][2]) * 1000)
+            .arg(conRotatQuat[conId][0])
+            .arg(conRotatQuat[conId][1])
+            .arg(conRotatQuat[conId][2])
+            .arg(conRotatQuat[conId][3]);
 
 
-                Gui::Command::doCommand(Gui::Command::Doc, cmd.toUtf8());
-                //doc->recompute();
-                objCount++;
+            Gui::Command::doCommand(Gui::Command::Doc, cmd.toUtf8());
+            //doc->recompute();
+            objCount++;
 
-                std::string s = "Cube " + std::to_string(objCount);
-                menuText->string = s.c_str();
+            std::string s = "Cube " + std::to_string(objCount);
+            menuText->string = s.c_str();
+        }
+        oldTriggerVal[conId] = currTriggerVal[conId];
+
+}
+
+
+void XRInteraction::getPickedObjectInfo(const SoPickedPoint *Point, uint32_t conId)
+{
+
+   /* if (currTriggerVal[conId] > 0.9f)
+    {
+        std::string objStr = "";
+        Gui::Document* doc = Gui::Application::Instance->activeDocument();
+        Gui::View3DInventor* view = dynamic_cast<Gui::View3DInventor*>(doc->getActiveView());
+        if (view) {
+            Gui::ViewProvider *vp = doc ? doc->getViewProviderByPathFromHead(Point->getPath())
+                                        : view->getViewer()->getViewProviderByPath(Point->getPath());
+            Gui::ViewProviderDocumentObject* vpd = static_cast<Gui::ViewProviderDocumentObject*>(vp);
+            auto obj = vpd->getObject();
+            if (obj)
+            {
+                objStr = obj->getNameInDocument();
+                //Base::Console().Message("%s\n", objStr.c_str());
             }
-            oldTriggerVal[i] = currTriggerVal[i];
+
+        }
+        //menuText->string = objStr.c_str();
+    }*/
+}
+void XRInteraction::pickMenuItem(const SoPickedPoint *Point, uint32_t conId)
+{
+
+        SoNode *tail = Point->getPath()->getTail();
+        if (tail->getNodeId() == menuTextLine0->getNodeId())
+        {
+           // menuTextLine0->string = "[Menu Item 0]";
+            //menuTextLine1->string = "Menu Item 1";
+            Base::Console().Message("Menu Item 0\n");
+        }
+        else if (tail->getNodeId() == menuTextLine1->getNodeId())
+        {
+            //menuTextLine0->string = "Menu Item 0";
+            //menuTextLine1->string = "[Menu Item 1]";
+            Base::Console().Message("Menu Item 1\n");
         }
 
 }
+
+
 
 void XRInteraction::setControllerState(uint32_t id, const SoTranslation *st, const SoRotation *sr, float tv)
 {

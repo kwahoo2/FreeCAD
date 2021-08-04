@@ -587,6 +587,33 @@ void CoinXRWidget::prepareControls()
         instance.suggestInteractionProfileBindings(suggestedBindings);
     }
 
+    {
+        dispatch.xrStringToPath(instance, "/interaction_profiles/microsoft/motion_controller", interactionProfilePath.put());
+
+        const xr::ActionSuggestedBinding bindings[] {
+            {poseAction,
+                        posePaths[0]},
+            {poseAction,
+                        posePaths[1]},
+            {xLeverAction,
+                        trackpadXPath[0]},
+            {xLeverAction,
+                        trackpadXPath[1]},
+            {yLeverAction,
+                        trackpadYPath[0]},
+            {yLeverAction,
+                        trackpadYPath[1]},
+            {grabAction,
+                        triggerValuePath[0]},
+            {grabAction,
+                        triggerValuePath[1]}
+        };
+        suggestedBindings.suggestedBindings = bindings;
+        suggestedBindings.interactionProfile = interactionProfilePath;
+        suggestedBindings.countSuggestedBindings = sizeof(bindings) / sizeof(bindings[0]);
+        instance.suggestInteractionProfileBindings(suggestedBindings);
+    }
+
     xr::ActionSpaceCreateInfo actionSpaceInfo {};
     actionSpaceInfo.type = xr::StructureType::ActionSpaceCreateInfo;
     actionSpaceInfo.next = nullptr;
@@ -933,8 +960,8 @@ void CoinXRWidget::updateXrControls()
         mXRi->setControllerState(i, conTrans[i], conRotat[i], currTriggerVal[i]);
     }
 
-    if (((currTriggerVal[0] > 0.2 && oldTriggerVal[0] <= 0.2) && (currTriggerVal[1] > 0.2))
-           || ((currTriggerVal[1] > 0.2 && oldTriggerVal[1] <= 0.2) && (currTriggerVal[0] > 0.2))) //enable or disable Interaction
+    if (((currTriggerVal[0] > 0.2f && oldTriggerVal[0] <= 0.2f) && (currTriggerVal[1] > 0.2f))
+           || ((currTriggerVal[1] > 0.2f && oldTriggerVal[1] <= 0.2f) && (currTriggerVal[0] > 0.2f))) //enable or disable Interaction
     {
         if (interaction)
         {
@@ -955,6 +982,7 @@ void CoinXRWidget::updateXrGui()
 {
     if (interaction)
     {
+        const SoPickedPoint *pp;
         //picking ray
         SbVec3f startVec = conTrans[secondaryConId]->translation.getValue();
         SbVec3f endVec = conTrans[secondaryConId]->translation.getValue() - rayAxis;
@@ -965,23 +993,27 @@ void CoinXRWidget::updateXrGui()
         menuRoot->addChild(camera[0]);
         menuRoot->addChild(conMenuSep);
 
-        if (mXRi->findPickedObject(menuRoot, vpReg,
-                               startVec, endVec, rayAxis,
-                               nearPlane, farPlane))
-        {
-              //place for menu operations
 
+        pp = mXRi->findPickedObject(menuRoot, vpReg,
+                                    startVec, endVec, rayAxis,
+                                    nearPlane, farPlane);
+        if (pp)
+        {
+            //place for menu operations
+            mXRi->pickMenuItem(pp, secondaryConId);
         }
         else
         {
         //if menu not hit, check the scene
-        mXRi->findPickedObject(wSep, vpReg,
-                               startVec, endVec, rayAxis,
-                               nearPlane, farPlane);
+            pp = mXRi->findPickedObject(wSep, vpReg,
+                                        startVec, endVec, rayAxis,
+                                        nearPlane, farPlane);
+            mXRi->getPickedObjectInfo(pp, secondaryConId);
         }
 
         //prepare and execute commands
-        mXRi->applyInput();
+        mXRi->applyInput(primaryConId);
+
     }
 
 }
