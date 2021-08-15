@@ -994,7 +994,7 @@ void CoinXRWidget::updateXrGui()
     menuRoot->addChild(conMenuSep);
 
 
-    if (currTriggerVal[secondaryConId] > 0.5) //do traversal only if trigger pressed, because it is expensive
+    if (currTriggerVal[secondaryConId] > 0.5f) //do traversal only if trigger pressed, because it is expensive
     {
         pp = mXRi->findPickedObject(menuRoot, vpReg,
                                     startVec, endVec, rayAxis,

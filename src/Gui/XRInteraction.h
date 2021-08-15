@@ -51,6 +51,7 @@
 #include <Inventor/actions/SoRayPickAction.h>
 #include <Inventor/SoPickedPoint.h>
 #include <Inventor/nodes/SoBaseColor.h>
+#include <Inventor/nodes/SoPointLight.h>
 
 #include "Document.h"
 #include "Base/Exception.h"

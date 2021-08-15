@@ -41,10 +41,14 @@
 
 XRInteraction::XRInteraction()
 {
-    doc = App::GetApplication().getActiveDocument();
+    /*doc = App::GetApplication().getActiveDocument();
 
     cmd = QString::fromLatin1("import Part, math, pivy");
-    Gui::Command::doCommand(Gui::Command::Doc, cmd.toUtf8());
+    Gui::Command::doCommand(Gui::Command::Doc, cmd.toUtf8());*/
+
+    ParameterGrp::handle xrGrp = App::GetApplication().GetParameterGroupByPath("User parameter:BaseApp/Preferences/XRViewer");
+    movementSpeed = static_cast<float>(xrGrp->GetFloat("MovementSpeed", 1.0));
+    rotationSpeed = static_cast<float>(xrGrp->GetFloat("RotationSpeed", 1.0));
 
     //menu  
     menuSep = new SoSeparator;
@@ -52,6 +56,9 @@ XRInteraction::XRInteraction()
     SoTranslation *menuTrans = new SoTranslation;
     menuTrans->translation.setValue(SbVec3f(0.0f, 0.12f,-0.15f));
     menuSep->addChild(menuTrans);
+    SoPointLight *menuLight = new SoPointLight;
+    menuLight->location = SbVec3f(0.0, 0.0f, 1.0f);
+    menuSep->addChild(menuLight);
 
     SoTranslation *textTrans = new SoTranslation;
     textTrans->translation.setValue(SbVec3f(0.0f, 0.05f,0.01f));
@@ -65,8 +72,8 @@ XRInteraction::XRInteraction()
 
     SoTranslation *lineSpacing = new SoTranslation;
     SoTranslation *barSpacing = new SoTranslation;
-    lineSpacing->translation.setValue(SbVec3f(0.0f, -10.0f, 0.0f));
-    barSpacing->translation.setValue(SbVec3f(50.0f, -1.0f, -2.0f));
+    lineSpacing->translation.setValue(SbVec3f(0.0f, -15.0f, 0.0f));
+    barSpacing->translation.setValue(SbVec3f(50.0f, 3.0f, -2.0f));
     menuSep->addChild(lineSpacing);
     menuTextLine0 = new SoText3; //this menu item
     menuTextLine0->string = "Movement speed";
@@ -75,7 +82,7 @@ XRInteraction::XRInteraction()
     SoSeparator * menuBar0Sep =  new SoSeparator;
     menuBar0 = new SoCube();
     menuBar0->width.setValue(100.0f);
-    menuBar0->height.setValue(8.0f);
+    menuBar0->height.setValue(12.0f);
     menuBar0->depth.setValue(1.0f);
     menuBar0Col = new SoBaseColor;
     menuBar0Col->rgb = deactivatedColor;
@@ -83,6 +90,7 @@ XRInteraction::XRInteraction()
     menuBar0Sep->addChild(barSpacing);
     menuBar0Sep->addChild(menuBar0);
     menuSep->addChild(menuBar0Sep);
+    menuBar0->width.setValue(100 * movementSpeed);
 
     menuSep->addChild(lineSpacing);
     menuTextLine1 = new SoText3; //this menu item
@@ -91,7 +99,7 @@ XRInteraction::XRInteraction()
     SoSeparator * menuBar1Sep =  new SoSeparator;
     menuBar1 = new SoCube();
     menuBar1->width.setValue(100.0f);
-    menuBar1->height.setValue(8.0f);
+    menuBar1->height.setValue(12.0f);
     menuBar1->depth.setValue(1.0f);
     menuBar1Col = new SoBaseColor;
     menuBar1Col->rgb = deactivatedColor;
@@ -99,6 +107,8 @@ XRInteraction::XRInteraction()
     menuBar1Sep->addChild(barSpacing);
     menuBar1Sep->addChild(menuBar1);
     menuSep->addChild(menuBar1Sep);
+    menuBar1->width.setValue(100 * rotationSpeed);
+
 
     //ray for picking objects
     rSep = new SoSeparator();
@@ -183,7 +193,6 @@ void XRInteraction::applyInput(uint32_t conId)
 
             std::string s = "Cube " + std::to_string(objCount);
             menuText->string = s.c_str();*/
-
 
         if (conId == primaryConId)
         {
@@ -310,6 +319,12 @@ bool XRInteraction::isMenuMode()
 void XRInteraction::toggleMenuMode()
 {
     menuMode = !menuMode;
+    if (!menuMode)
+    {
+        ParameterGrp::handle xrGrp = App::GetApplication().GetParameterGroupByPath("User parameter:BaseApp/Preferences/XRViewer");
+        xrGrp->SetFloat("MovementSpeed", static_cast<double>(movementSpeed));
+        xrGrp->SetFloat("RotationSpeed", static_cast<double>(rotationSpeed));
+    }
 }
 
 void XRInteraction::setPriAndSecController (uint32_t pri, uint32_t sec)
