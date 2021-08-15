@@ -64,27 +64,48 @@ public:
     explicit XRInteraction();
     ~XRInteraction();
 
+    bool isMenuMode();
+    void toggleMenuMode();
+    void setPriAndSecController (uint32_t pri, uint32_t sec);
     void applyInput(uint32_t conId);
-    void setControllerState(uint32_t id, const SoTranslation *st, const SoRotation *sr, float tv);
+    void setControllerState(uint32_t id, const SoTranslation *st, const SoRotation *sr, float tv, float xv, float yv);
+    float getMovementSpeed();
+    float getRotationSpeed();
+
     SoSeparator * getMenuSeparator();
     SoSeparator * getRaySeparator();
     const SoPickedPoint * findPickedObject(SoSeparator *sep, SbViewportRegion vpReg,
                           SbVec3f startVec, SbVec3f endVec, SbVec3f rayAxis,
                           float nearPlane, float farPlane);
-    void getPickedObjectInfo(const SoPickedPoint *Point, uint32_t conId);
     void pickMenuItem(const SoPickedPoint *Point, uint32_t conId);
+
 
 private:
 
+    void changeMovementSpeed (float xv);
+    void changeRotationSpeed (float xv);
     static const uint32_t hands = 2;
     float currTriggerVal[hands];
     float oldTriggerVal[hands];
+    float currXStickVal[hands];
+    float currYStickVal[hands];
+    float oldXStickVal[hands];
+    float oldYStickVal[hands];
+    float movementSpeed = 1.0f;
+    float rotationSpeed = 1.0f;
     SbVec3f conTransVec[hands];
     SbRotation conRotatQuat[hands];
+    uint32_t primaryConId = 0;
+    uint32_t secondaryConId = 1;
+    SbColor activatedColor = SbColor (0.0f, 1.0f, 0.0f);
+    SbColor deactivatedColor = SbColor (0.5f, 0.2f ,0.2f);
+    int32_t selectedMenuItem = 0;
+    int32_t numberOfMenuItems = 2;
 
     QString cmd;
     uint32_t objCount = 0;
     App::Document* doc;
+    bool menuMode = 0;
 
     SoSeparator *rSep;
     SoVertexProperty *rayVtxs;
@@ -97,7 +118,10 @@ private:
     SoText3 *menuText;
     SoText3 *menuTextLine0;
     SoText3 *menuTextLine1;
-    SoCube *menuCube;
+    SoCube *menuBar0;
+    SoBaseColor *menuBar0Col;
+    SoCube *menuBar1;
+    SoBaseColor *menuBar1Col;
 
 };
 
