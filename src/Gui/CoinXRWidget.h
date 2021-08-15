@@ -68,6 +68,7 @@
 #undef Complex
 
 #include <QApplication>
+#include <QString>
 #include <QOpenGLWidget>
 #include <QTimer>
 #include <QElapsedTimer>
