@@ -45,6 +45,7 @@
 CoinXRWidget::CoinXRWidget() : QOpenGLWidget()
 {
      mXRi = new XRInteraction();
+     mXRi->setPriAndSecController(primaryConId, secondaryConId);
 
     uint32_t flatScale = 2;
     QSurfaceFormat format;
@@ -824,6 +825,9 @@ void CoinXRWidget::updateXrViews()
 
 void CoinXRWidget::updateXrControls()
 {
+    userMovSpeed = mXRi->getMovementSpeed();
+    userRotSpeed = mXRi->getRotationSpeed();
+
     const xr::ActiveActionSet activeActionSet {actionSet};
 
     xr::ActionsSyncInfo syncInfo {};
@@ -933,13 +937,19 @@ void CoinXRWidget::updateXrControls()
         //float mat21 = 2*qy*qz+2*qx*qw;
         float mat22 = 1-2*qx*qx-2*qy*qy;
 
+
+
         if (i == primaryConId){
             SbVec3f step = SbVec3f(0.0f, 0.0f, 0.0f);
             float z0 = mat02;
             float z1 = mat12;
             float z2 = mat22;
-            step = SbVec3f(-yaxis * z0 * movSpeed, -yaxis * z1 * movSpeed, -yaxis * z2 * movSpeed);
-            worldTransform->translation.setValue(worldTransform->translation.getValue() + step);
+            float finalMovSpeed = movSpeed * userMovSpeed;
+            step = SbVec3f(-yaxis * z0 * finalMovSpeed, -yaxis * z1 * finalMovSpeed, -yaxis * z2 * finalMovSpeed);
+            if (!mXRi->isMenuMode()) //do not allow user movement if menumode is active
+            {
+                worldTransform->translation.setValue(worldTransform->translation.getValue() + step);
+            }
 
         }
         if (i == secondaryConId){
@@ -950,28 +960,20 @@ void CoinXRWidget::updateXrControls()
             SbRotation conZrot = SbRotation(conZaxis, -xaxis);
             SbRotation padrot = SbRotation();
             padrot = conXrot * conZrot;
-            padrot.scaleAngle(0.5f * movSpeed);
+            padrot.scaleAngle(0.5f * movSpeed * userRotSpeed);
             transfMod->rotation.setValue(padrot);
-            worldTransform->combineRight(transfMod);
+            if (!mXRi->isMenuMode())
+            {
+                worldTransform->combineRight(transfMod);
+            }
             rayAxis = conZaxis;
         }
 
+
         //XRInteraction
-        mXRi->setControllerState(i, conTrans[i], conRotat[i], currTriggerVal[i]);
+        mXRi->setControllerState(i, conTrans[i], conRotat[i], currTriggerVal[i], xaxis, yaxis);
     }
 
-    if (((currTriggerVal[0] > 0.2f && oldTriggerVal[0] <= 0.2f) && (currTriggerVal[1] > 0.2f))
-           || ((currTriggerVal[1] > 0.2f && oldTriggerVal[1] <= 0.2f) && (currTriggerVal[0] > 0.2f))) //enable or disable Interaction
-    {
-        if (interaction)
-        {
-            interaction = false;
-        }
-        else
-        {
-            interaction = true;
-        }
-    }
     for (uint32_t i = 0; i < hands; i++)
     {
         oldTriggerVal[i] = currTriggerVal[i];
@@ -980,20 +982,20 @@ void CoinXRWidget::updateXrControls()
 
 void CoinXRWidget::updateXrGui()
 {
-    if (interaction)
+    const SoPickedPoint *pp;
+    //picking ray
+    SbVec3f startVec = conTrans[secondaryConId]->translation.getValue();
+    SbVec3f endVec = conTrans[secondaryConId]->translation.getValue() - rayAxis;
+
+    SoSeparator *menuRoot = new SoSeparator; //build a tree just for menu picking
+    menuRoot->addChild(conTrans[primaryConId]);
+    menuRoot->addChild(conRotat[primaryConId]);
+    menuRoot->addChild(camera[0]);
+    menuRoot->addChild(conMenuSep);
+
+
+    if (currTriggerVal[secondaryConId] > 0.5) //do traversal only if trigger pressed, because it is expensive
     {
-        const SoPickedPoint *pp;
-        //picking ray
-        SbVec3f startVec = conTrans[secondaryConId]->translation.getValue();
-        SbVec3f endVec = conTrans[secondaryConId]->translation.getValue() - rayAxis;
-
-        SoSeparator *menuRoot = new SoSeparator; //build a tree just for menu picking
-        menuRoot->addChild(conTrans[primaryConId]);
-        menuRoot->addChild(conRotat[primaryConId]);
-        menuRoot->addChild(camera[0]);
-        menuRoot->addChild(conMenuSep);
-
-
         pp = mXRi->findPickedObject(menuRoot, vpReg,
                                     startVec, endVec, rayAxis,
                                     nearPlane, farPlane);
@@ -1008,13 +1010,12 @@ void CoinXRWidget::updateXrGui()
             pp = mXRi->findPickedObject(wSep, vpReg,
                                         startVec, endVec, rayAxis,
                                         nearPlane, farPlane);
-            mXRi->getPickedObjectInfo(pp, secondaryConId);
         }
-
-        //prepare and execute commands
-        mXRi->applyInput(primaryConId);
-
     }
+
+    //prepare and execute commands
+    mXRi->applyInput(primaryConId);
+
 
 }
 

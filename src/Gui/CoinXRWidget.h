@@ -121,7 +121,6 @@ class CoinXRWidget  : public QOpenGLWidget , protected QOpenGLFunctions_4_5_Core
     SbVec3f rayAxis;
 
     bool quit{ false };
-    bool interaction{ false };
     static const uint32_t hands = 2;
     uint32_t m_nRenderWidth;
     uint32_t m_nRenderHeight;
@@ -154,6 +153,8 @@ class CoinXRWidget  : public QOpenGLWidget , protected QOpenGLFunctions_4_5_Core
 
     float movSpeed;
     float scaleMod;
+    float userMovSpeed = 1.0f;
+    float userRotSpeed = 1.0f;
     float currTriggerVal[hands];
     float oldTriggerVal[hands];
     QElapsedTimer eTimer; //measure time of frame

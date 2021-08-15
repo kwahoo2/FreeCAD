@@ -46,38 +46,59 @@ XRInteraction::XRInteraction()
     cmd = QString::fromLatin1("import Part, math, pivy");
     Gui::Command::doCommand(Gui::Command::Doc, cmd.toUtf8());
 
-    //menu
+    //menu  
     menuSep = new SoSeparator;
     menuSep->ref();
     SoTranslation *menuTrans = new SoTranslation;
     menuTrans->translation.setValue(SbVec3f(0.0f, 0.12f,-0.15f));
     menuSep->addChild(menuTrans);
-    /*menuCube = new SoCube();
-    menuCube->width.setValue(0.2f);
-    menuCube->height.setValue(0.2f);
-    menuCube->depth.setValue(0.001f);
-    menuSep->addChild(menuCube);*/
+
     SoTranslation *textTrans = new SoTranslation;
-    textTrans->translation.setValue(SbVec3f(0.0f, 0.1f,0.01f));
+    textTrans->translation.setValue(SbVec3f(0.0f, 0.05f,0.01f));
     menuSep->addChild(textTrans);
     menuText = new SoText3; //this is status bar
     SoScale * textScale = new SoScale;
-    textScale->scaleFactor.setValue(SbVec3f(0.005f, 0.005f, 0.005f));
-    menuText->string = "Press triggers to enable ray";
+    textScale->scaleFactor.setValue(SbVec3f(0.002f, 0.002f, 0.002f));
+    menuText->string = "Trigger toggles menu";
     menuSep->addChild(textScale);
     menuSep->addChild(menuText);
 
     SoTranslation *lineSpacing = new SoTranslation;
+    SoTranslation *barSpacing = new SoTranslation;
     lineSpacing->translation.setValue(SbVec3f(0.0f, -10.0f, 0.0f));
+    barSpacing->translation.setValue(SbVec3f(50.0f, -1.0f, -2.0f));
     menuSep->addChild(lineSpacing);
     menuTextLine0 = new SoText3; //this menu item
-    menuTextLine0->string = "Menu Item 0";
+    menuTextLine0->string = "Movement speed";
     menuSep->addChild(menuTextLine0);
+    //this is bar representing value
+    SoSeparator * menuBar0Sep =  new SoSeparator;
+    menuBar0 = new SoCube();
+    menuBar0->width.setValue(100.0f);
+    menuBar0->height.setValue(8.0f);
+    menuBar0->depth.setValue(1.0f);
+    menuBar0Col = new SoBaseColor;
+    menuBar0Col->rgb = deactivatedColor;
+    menuBar0Sep->addChild(menuBar0Col);
+    menuBar0Sep->addChild(barSpacing);
+    menuBar0Sep->addChild(menuBar0);
+    menuSep->addChild(menuBar0Sep);
+
     menuSep->addChild(lineSpacing);
     menuTextLine1 = new SoText3; //this menu item
-    menuTextLine1->string = "Menu Item 1";
+    menuTextLine1->string = "Rotation speed";
     menuSep->addChild(menuTextLine1);
-    menuSep->addChild(lineSpacing);
+    SoSeparator * menuBar1Sep =  new SoSeparator;
+    menuBar1 = new SoCube();
+    menuBar1->width.setValue(100.0f);
+    menuBar1->height.setValue(8.0f);
+    menuBar1->depth.setValue(1.0f);
+    menuBar1Col = new SoBaseColor;
+    menuBar1Col->rgb = deactivatedColor;
+    menuBar1Sep->addChild(menuBar1Col);
+    menuBar1Sep->addChild(barSpacing);
+    menuBar1Sep->addChild(menuBar1);
+    menuSep->addChild(menuBar1Sep);
 
     //ray for picking objects
     rSep = new SoSeparator();
@@ -87,7 +108,7 @@ XRInteraction::XRInteraction()
     rayVtxs->vertex.set1Value(1, 0, 0, 1);  // Set second vertex, later update to point of intersection ray with hit object
     rayLine = new SoLineSet();
     rayLine->vertexProperty = rayVtxs;
-    SoBaseColor * rayCol = new SoBaseColor; //blue sphere to show intersection point
+    SoBaseColor * rayCol = new SoBaseColor; //red sphere to show intersection point
     rayCol->rgb = SbColor(1, 0, 0);
     rSep->addChild(rayCol);
     rSep->addChild(rayLine); //only one controller will shoot the ray
@@ -98,14 +119,35 @@ XRInteraction::XRInteraction()
     raySph->radius.setValue(0.02f);
     rSep->addChild(raySph);
 
+    for (uint32_t id = 0; id < hands; id++)
+    {
+        currTriggerVal[id] = 0.0f;
+        currXStickVal[id] = 0.0f;
+        currYStickVal[id] = 0.0f;
+        oldTriggerVal[id] = 0.0f;
+        oldXStickVal[id] = 0.0f;
+        oldYStickVal[id] = 0.0f;
+    }
+
 }
 
 void XRInteraction::applyInput(uint32_t conId)
 {
         if (currTriggerVal[conId] > 0.9f && oldTriggerVal[conId] <= 0.9f)
             {
+            if (conId == primaryConId)
+                {
+                    toggleMenuMode();
+                }
+                else
+                {
 
-            double l = 200.0;
+                }
+            }
+
+
+            //uncomment to enable creating cubes in space when a trigger is pressed
+            /*double l = 200.0;
             double w = 100.0;
             double h = 500.0;
 
@@ -125,7 +167,7 @@ void XRInteraction::applyInput(uint32_t conId)
             .arg(l)
             .arg(w)
             .arg(h)
-             /*meters to milimeters conversion*/
+             //meters to milimeters conversion
             .arg((conTransVec[conId][0]) * 1000)
             .arg((conTransVec[conId][1]) * 1000)
             .arg((conTransVec[conId][2]) * 1000)
@@ -140,40 +182,64 @@ void XRInteraction::applyInput(uint32_t conId)
             objCount++;
 
             std::string s = "Cube " + std::to_string(objCount);
-            menuText->string = s.c_str();
-        }
-        oldTriggerVal[conId] = currTriggerVal[conId];
-
-}
+            menuText->string = s.c_str();*/
 
 
-void XRInteraction::getPickedObjectInfo(const SoPickedPoint *Point, uint32_t conId)
-{
-
-   /* if (currTriggerVal[conId] > 0.9f)
-    {
-        std::string objStr = "";
-        Gui::Document* doc = Gui::Application::Instance->activeDocument();
-        Gui::View3DInventor* view = dynamic_cast<Gui::View3DInventor*>(doc->getActiveView());
-        if (view) {
-            Gui::ViewProvider *vp = doc ? doc->getViewProviderByPathFromHead(Point->getPath())
-                                        : view->getViewer()->getViewProviderByPath(Point->getPath());
-            Gui::ViewProviderDocumentObject* vpd = static_cast<Gui::ViewProviderDocumentObject*>(vp);
-            auto obj = vpd->getObject();
-            if (obj)
+        if (conId == primaryConId)
+        {
+            if (isMenuMode())
             {
-                objStr = obj->getNameInDocument();
-                //Base::Console().Message("%s\n", objStr.c_str());
+                if (currYStickVal[conId] > 0.9f && oldYStickVal[conId] <= 0.9f)
+                {
+                    selectedMenuItem--;
+                }
+                if (currYStickVal[conId] < -0.9f && oldYStickVal[conId] >= -0.9f)
+                {
+                    selectedMenuItem++;
+                }
+                if (selectedMenuItem > numberOfMenuItems)
+                        selectedMenuItem = 0;
+                if (selectedMenuItem < 0)
+                        selectedMenuItem = numberOfMenuItems;
+                switch (selectedMenuItem) {
+                case 1:
+                    menuBar0Col->rgb = activatedColor;
+                    menuBar1Col->rgb = deactivatedColor;
+                    changeMovementSpeed(currXStickVal[conId]);
+                    menuBar0->width.setValue(100 * movementSpeed);
+                    break;
+                case 2:
+                    menuBar0Col->rgb = deactivatedColor;
+                    menuBar1Col->rgb = activatedColor;
+                    changeRotationSpeed(currXStickVal[conId]);
+                    menuBar1->width.setValue(100 * rotationSpeed);
+                    break;
+                default:
+                    menuBar0Col->rgb = deactivatedColor;
+                    menuBar1Col->rgb = deactivatedColor;
+                    break;
+                }
+
+            }
+            else
+            {
+                menuBar0Col->rgb = deactivatedColor;
+                menuBar1Col->rgb = deactivatedColor;
             }
 
         }
-        //menuText->string = objStr.c_str();
-    }*/
+
+        oldTriggerVal[conId] = currTriggerVal[conId];
+        oldXStickVal[conId] = currXStickVal[conId];
+        oldYStickVal[conId] = currYStickVal[conId];
+
 }
+
+
 void XRInteraction::pickMenuItem(const SoPickedPoint *Point, uint32_t conId)
 {
 
-        SoNode *tail = Point->getPath()->getTail();
+        /*SoNode *tail = Point->getPath()->getTail();
         if (tail->getNodeId() == menuTextLine0->getNodeId())
         {
            // menuTextLine0->string = "[Menu Item 0]";
@@ -185,17 +251,19 @@ void XRInteraction::pickMenuItem(const SoPickedPoint *Point, uint32_t conId)
             //menuTextLine0->string = "Menu Item 0";
             //menuTextLine1->string = "[Menu Item 1]";
             Base::Console().Message("Menu Item 1\n");
-        }
+        }*/
 
 }
 
 
 
-void XRInteraction::setControllerState(uint32_t id, const SoTranslation *st, const SoRotation *sr, float tv)
+void XRInteraction::setControllerState(uint32_t id, const SoTranslation *st, const SoRotation *sr, float tv, float xv, float yv)
 {
     conTransVec[id] = st->translation.getValue();
     conRotatQuat[id] = sr->rotation.getValue();
     currTriggerVal[id] = tv;
+    currXStickVal[id] = xv;
+    currYStickVal[id] = yv;
 
 }
 
@@ -234,6 +302,65 @@ const SoPickedPoint * XRInteraction::findPickedObject(SoSeparator *sep, SbViewpo
     return pickedPoint;
 }
 
+bool XRInteraction::isMenuMode()
+{
+    return menuMode;
+}
+
+void XRInteraction::toggleMenuMode()
+{
+    menuMode = !menuMode;
+}
+
+void XRInteraction::setPriAndSecController (uint32_t pri, uint32_t sec)
+{
+    primaryConId = pri;
+    secondaryConId = sec;
+}
+
+void XRInteraction::changeMovementSpeed (float xv)
+{
+    float step = 0.01f;
+    if ((xv > 0.1f) || (xv < 0.1f))
+    {
+        movementSpeed = movementSpeed + step * xv;
+    }
+    if (movementSpeed < 0.01f)
+    {
+        movementSpeed = 0.01f;
+    }
+    if (movementSpeed > 2.0f)
+    {
+        movementSpeed = 2.0f;
+    }
+}
+
+void XRInteraction::changeRotationSpeed (float xv)
+{
+    float step = 0.01f;
+    if ((xv > 0.1f) || (xv < 0.1f))
+    {
+        rotationSpeed = rotationSpeed + step * xv;
+    }
+    if (rotationSpeed < 0.01f)
+    {
+        rotationSpeed = 0.01f;
+    }
+    if (rotationSpeed > 2.0f)
+    {
+        rotationSpeed = 2.0f;
+    }
+}
+
+float XRInteraction::getMovementSpeed()
+{
+    return movementSpeed;
+}
+
+float XRInteraction::getRotationSpeed()
+{
+    return rotationSpeed;
+}
 
 XRInteraction::~XRInteraction()
 {
