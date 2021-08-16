@@ -113,6 +113,8 @@ class CoinXRWidget  : public QOpenGLWidget , protected QOpenGLFunctions_4_5_Core
     SoCube *conGizmo[2];
     SoTranslation *conTrans[2];
     SoRotation *conRotat[2];
+    SbRotation hmdrot;
+    SbVec3f hmdpos;
     SoCylinder *conStick[2];
     SoRotation *stickRotat[2];
     SoTransform *worldTransform;
@@ -120,6 +122,7 @@ class CoinXRWidget  : public QOpenGLWidget , protected QOpenGLFunctions_4_5_Core
     QSurfaceFormat oldFormat;
     SoSeparator *conMenuSep;
     SbVec3f rayAxis;
+
 
     bool quit{ false };
     static const uint32_t hands = 2;
@@ -161,6 +164,8 @@ class CoinXRWidget  : public QOpenGLWidget , protected QOpenGLFunctions_4_5_Core
     QElapsedTimer eTimer; //measure time of frame
     uint32_t primaryConId = 0; //left one one most systemes
     uint32_t secondaryConId = 1;
+    uint32_t controlScheme = 0; //0 - "free" movement, world translated (stick forward/backward) along primary controller axis and rotates around secondary controller center,
+    //1 - "arch" movement, primary controller moves up/down, left/right, secondary moves forward/backward and rotates around Z axis.
 
     std::vector<xr::CompositionLayerBaseHeader*> layersPointers;
 

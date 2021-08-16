@@ -646,6 +646,9 @@ void CoinXRWidget::prepareScene()
 
     basePosition = SbVec3f(0.0f, 0.0f, 2.0f);
 
+    hmdrot = SbRotation(0.0f, 0.0f, 0.0f, 0.0f);
+    hmdpos = SbVec3f(0.0f, 0.0f, 0.0f);
+
     // light handling
     SoDirectionalLight *light = new SoDirectionalLight();
     light->direction.setValue(1,-1,-1);
@@ -791,8 +794,8 @@ void CoinXRWidget::updateXrViews()
     xr::for_each_side_index([&](size_t eyeIndex) {
         const auto& viewState = eyeViewStates[eyeIndex];
 
-        SbRotation hmdrot = SbRotation(viewState.pose.orientation.x, viewState.pose.orientation.y, viewState.pose.orientation.z, viewState.pose.orientation.w);
-        SbVec3f hmdpos = SbVec3f(viewState.pose.position.x, viewState.pose.position.y, viewState.pose.position.z); //get global position and orientation for both cameras
+        hmdrot = SbRotation(viewState.pose.orientation.x, viewState.pose.orientation.y, viewState.pose.orientation.z, viewState.pose.orientation.w);
+        hmdpos = SbVec3f(viewState.pose.position.x, viewState.pose.position.y, viewState.pose.position.z); //get global position and orientation for both cameras
 
         SoTransform *camTransform = new SoTransform();
         camTransform->translation.setValue(worldTransform->translation.getValue()); //transfer values only
@@ -921,53 +924,61 @@ void CoinXRWidget::updateXrControls()
         xrot->getRotation();
         stickRotat[i]->rotation.setValue(xrot->getRotation() * yrot->getRotation());
 
-        float qx = conRotat[i]->rotation.getValue()[0];
-        float qy = conRotat[i]->rotation.getValue()[1];
-        float qz = conRotat[i]->rotation.getValue()[2];
-        float qw = conRotat[i]->rotation.getValue()[3];
+        float finalMovSpeed = movSpeed * userMovSpeed;
 
-        //https://www.euclideanspace.com/maths/geometry/rotations/conversions/quaternionToMatrix/index.htm
-        float mat00 = 1-2*qy*qy-2*qz*qz;
-        //float mat01 = 2*qx*qy-2*qz*qw;
-        float mat02 = 2*qx*qz+2*qy*qw;
-        float mat10 = 2*qx*qy+2*qz*qw;
-        //float mat11 = 1-2*qx*qx-2*qz*qz;
-        float mat12 = 2*qy*qz-2*qx*qw;
-        float mat20 = 2*qx*qz-2*qy*qw;
-        //float mat21 = 2*qy*qz+2*qx*qw;
-        float mat22 = 1-2*qx*qx-2*qy*qy;
+        if (controlScheme == 0)
+        {
+            float qx = conRotat[i]->rotation.getValue()[0];
+            float qy = conRotat[i]->rotation.getValue()[1];
+            float qz = conRotat[i]->rotation.getValue()[2];
+            float qw = conRotat[i]->rotation.getValue()[3];
 
+            //https://www.euclideanspace.com/maths/geometry/rotations/conversions/quaternionToMatrix/index.htm
+            float mat00 = 1-2*qy*qy-2*qz*qz;
+            //float mat01 = 2*qx*qy-2*qz*qw;
+            float mat02 = 2*qx*qz+2*qy*qw;
+            float mat10 = 2*qx*qy+2*qz*qw;
+            //float mat11 = 1-2*qx*qx-2*qz*qz;
+            float mat12 = 2*qy*qz-2*qx*qw;
+            float mat20 = 2*qx*qz-2*qy*qw;
+            //float mat21 = 2*qy*qz+2*qx*qw;
+            float mat22 = 1-2*qx*qx-2*qy*qy;
 
+            if (i == primaryConId){
+                SbVec3f step = SbVec3f(0.0f, 0.0f, 0.0f);
+                float z0 = mat02;
+                float z1 = mat12;
+                float z2 = mat22;
+                step = SbVec3f(-yaxis * z0 * finalMovSpeed, -yaxis * z1 * finalMovSpeed, -yaxis * z2 * finalMovSpeed);
+                if (!mXRi->isMenuMode()) //do not allow user movement if menumode is active
+                {
+                    worldTransform->translation.setValue(worldTransform->translation.getValue() + step);
+                }
 
-        if (i == primaryConId){
-            SbVec3f step = SbVec3f(0.0f, 0.0f, 0.0f);
-            float z0 = mat02;
-            float z1 = mat12;
-            float z2 = mat22;
-            float finalMovSpeed = movSpeed * userMovSpeed;
-            step = SbVec3f(-yaxis * z0 * finalMovSpeed, -yaxis * z1 * finalMovSpeed, -yaxis * z2 * finalMovSpeed);
-            if (!mXRi->isMenuMode()) //do not allow user movement if menumode is active
-            {
-                worldTransform->translation.setValue(worldTransform->translation.getValue() + step);
             }
+            if (i == secondaryConId){
+                transfMod->center.setValue(conpos[i]);
+                SbVec3f conXaxis = SbVec3f(mat00, mat10, mat20);
+                SbVec3f conZaxis = SbVec3f(mat02, mat12, mat22);
+                SbRotation conXrot = SbRotation(conXaxis, -yaxis); //stick moves world around one of controller axes
+                SbRotation conZrot = SbRotation(conZaxis, -xaxis);
+                SbRotation padrot = SbRotation();
+                padrot = conXrot * conZrot;
+                padrot.scaleAngle(0.5f * movSpeed * userRotSpeed);
+                transfMod->rotation.setValue(padrot);
+                if (!mXRi->isMenuMode())
+                {
+                    worldTransform->combineRight(transfMod);
+                }
+                rayAxis = conZaxis;
+            }
+        }
+        if (controlScheme == 1)
+        {
+
 
         }
-        if (i == secondaryConId){
-            transfMod->center.setValue(conpos[i]);
-            SbVec3f conXaxis = SbVec3f(mat00, mat10, mat20);
-            SbVec3f conZaxis = SbVec3f(mat02, mat12, mat22);
-            SbRotation conXrot = SbRotation(conXaxis, -yaxis); //stick moves world around one of controller axes
-            SbRotation conZrot = SbRotation(conZaxis, -xaxis);
-            SbRotation padrot = SbRotation();
-            padrot = conXrot * conZrot;
-            padrot.scaleAngle(0.5f * movSpeed * userRotSpeed);
-            transfMod->rotation.setValue(padrot);
-            if (!mXRi->isMenuMode())
-            {
-                worldTransform->combineRight(transfMod);
-            }
-            rayAxis = conZaxis;
-        }
+
 
 
         //XRInteraction
@@ -987,16 +998,17 @@ void CoinXRWidget::updateXrGui()
     SbVec3f startVec = conTrans[secondaryConId]->translation.getValue();
     SbVec3f endVec = conTrans[secondaryConId]->translation.getValue() - rayAxis;
 
-    SoSeparator *menuRoot = new SoSeparator; //build a tree just for menu picking
+    //disabled menu tree building, because it creates huge performance issues
+    /*SoSeparator *menuRoot = new SoSeparator; //build a tree just for menu picking
     menuRoot->addChild(conTrans[primaryConId]);
     menuRoot->addChild(conRotat[primaryConId]);
     menuRoot->addChild(camera[0]);
-    menuRoot->addChild(conMenuSep);
+    menuRoot->addChild(conMenuSep);*/
 
 
     if (currTriggerVal[secondaryConId] > 0.5f) //do traversal only if trigger pressed, because it is expensive
     {
-        pp = mXRi->findPickedObject(menuRoot, vpReg,
+        /*pp = mXRi->findPickedObject(menuRoot, vpReg,
                                     startVec, endVec, rayAxis,
                                     nearPlane, farPlane);
         if (pp)
@@ -1005,12 +1017,12 @@ void CoinXRWidget::updateXrGui()
             mXRi->pickMenuItem(pp, secondaryConId);
         }
         else
-        {
+        {*/
         //if menu not hit, check the scene
             pp = mXRi->findPickedObject(wSep, vpReg,
                                         startVec, endVec, rayAxis,
                                         nearPlane, farPlane);
-        }
+       // }
     }
 
     //prepare and execute commands
