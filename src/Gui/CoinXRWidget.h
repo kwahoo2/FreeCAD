@@ -164,7 +164,7 @@ class CoinXRWidget  : public QOpenGLWidget , protected QOpenGLFunctions_4_5_Core
     QElapsedTimer eTimer; //measure time of frame
     uint32_t primaryConId = 0; //left one one most systemes
     uint32_t secondaryConId = 1;
-    uint32_t controlScheme = 0; //0 - "free" movement, world translated (stick forward/backward) along primary controller axis and rotates around secondary controller center,
+    int32_t controlScheme = 0; //0 - "free" movement, world translated (stick forward/backward) along primary controller axis and rotates around secondary controller center,
     //1 - "arch" movement, primary controller moves up/down, left/right, secondary moves forward/backward and rotates around Z axis.
 
     std::vector<xr::CompositionLayerBaseHeader*> layersPointers;

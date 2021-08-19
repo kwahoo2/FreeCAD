@@ -66,12 +66,12 @@ public:
     ~XRInteraction();
 
     bool isMenuMode();
-    void toggleMenuMode();
     void setPriAndSecController (uint32_t pri, uint32_t sec);
     void applyInput(uint32_t conId);
     void setControllerState(uint32_t id, const SoTranslation *st, const SoRotation *sr, float tv, float xv, float yv);
     float getMovementSpeed();
     float getRotationSpeed();
+    int32_t getControlScheme();
 
     SoSeparator * getMenuSeparator();
     SoSeparator * getRaySeparator();
@@ -85,6 +85,10 @@ private:
 
     void changeMovementSpeed (float xv);
     void changeRotationSpeed (float xv);
+    void toggleMenuMode();
+    void toggleMenuBar2(uint32_t conId);
+    void updateMenuBar2();
+
     static const uint32_t hands = 2;
     float currTriggerVal[hands];
     float oldTriggerVal[hands];
@@ -101,11 +105,12 @@ private:
     SbColor activatedColor = SbColor (0.0f, 1.0f, 0.0f);
     SbColor deactivatedColor = SbColor (0.5f, 0.2f ,0.2f);
     int32_t selectedMenuItem = 0;
+    int32_t selectedControlScheme = 0;
     int32_t numberOfMenuItems = 2;
 
     QString cmd;
     uint32_t objCount = 0;
-    App::Document* doc;
+    //App::Document* doc;
     bool menuMode = 0;
 
     SoSeparator *rSep;
@@ -119,10 +124,14 @@ private:
     SoText3 *menuText;
     SoText3 *menuTextLine0;
     SoText3 *menuTextLine1;
+    SoText3 *menuTextLine2;
     SoCube *menuBar0;
     SoBaseColor *menuBar0Col;
     SoCube *menuBar1;
     SoBaseColor *menuBar1Col;
+    SoCube *menuBar2;
+    SoBaseColor *menuBar2Col;
+    SoTranslation *toggleBar2Spacing;
 
 };
 

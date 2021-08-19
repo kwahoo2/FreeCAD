@@ -28,26 +28,22 @@
 #include <Base/Console.h>
 #include "View3DInventorXRViewer.h"
 #include <App/Application.h>
+#include <cmath>
 
 using namespace Gui;
 
 View3DInventorXRViewer::View3DInventorXRViewer() : CoinXRWidget()
 {
     workplace = new SoGroup();
-    //translation  = new SoTranslation   ;
-    //translation->translation.setValue(0,-1,0);
-    //workplace->addChild(translation);
 
     rotation1     = new SoRotationXYZ   ;
     rotation1->axis.setValue(SoRotationXYZ::X);
-    rotation1->angle.setValue(0);
+    rotation1->angle.setValue(-M_PI_2);
     workplace->addChild(rotation1);
 
-    rotation2     = new SoRotationXYZ   ;
-    rotation2->axis.setValue(SoRotationXYZ::Z);
-    rotation2->angle.setValue(0);
-    workplace->addChild(rotation2);
-
+    //translation  = new SoTranslation   ;
+    //translation->translation.setValue(0.0f, 0.0f, -1.0f);
+    //workplace->addChild(translation);
 
     scale        = new SoScale         ;
     scale->scaleFactor.setValue(0.001f,0.001f,0.001f); // scale from mm to m as needed by the HMD
