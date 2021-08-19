@@ -49,6 +49,7 @@ XRInteraction::XRInteraction()
     ParameterGrp::handle xrGrp = App::GetApplication().GetParameterGroupByPath("User parameter:BaseApp/Preferences/XRViewer");
     movementSpeed = static_cast<float>(xrGrp->GetFloat("MovementSpeed", 1.0));
     rotationSpeed = static_cast<float>(xrGrp->GetFloat("RotationSpeed", 1.0));
+    selectedControlScheme = static_cast<int32_t>(xrGrp->GetInt("ControlScheme", 0));
 
     //menu  
     menuSep = new SoSeparator;
@@ -108,6 +109,26 @@ XRInteraction::XRInteraction()
     menuBar1Sep->addChild(menuBar1);
     menuSep->addChild(menuBar1Sep);
     menuBar1->width.setValue(100 * rotationSpeed);
+
+    menuSep->addChild(lineSpacing);
+    menuTextLine2 = new SoText3; //this menu item
+    menuTextLine2->string = "[Free] [Arch]";
+    menuSep->addChild(menuTextLine2);
+    SoSeparator * menuBar2Sep =  new SoSeparator;
+    menuBar2 = new SoCube();
+    menuBar2->width.setValue(30.0f);
+    menuBar2->height.setValue(12.0f);
+    menuBar2->depth.setValue(1.0f);
+    menuBar2Col = new SoBaseColor;
+    menuBar2Col->rgb = deactivatedColor;
+    menuBar2Sep->addChild(menuBar2Col);
+    menuBar2Sep->addChild(barSpacing);
+    toggleBar2Spacing = new SoTranslation;
+    toggleBar2Spacing->translation.setValue(SbVec3f(-35.0f, 0.0f, 0.0f));
+    menuBar2Sep->addChild(toggleBar2Spacing);
+    menuBar2Sep->addChild(menuBar2);
+    updateMenuBar2();
+    menuSep->addChild(menuBar2Sep);
 
 
     //ray for picking objects
@@ -198,11 +219,11 @@ void XRInteraction::applyInput(uint32_t conId)
         {
             if (isMenuMode())
             {
-                if (currYStickVal[conId] > 0.9f && oldYStickVal[conId] <= 0.9f)
+                if (currYStickVal[conId] > 0.5f && oldYStickVal[conId] <= 0.5f)
                 {
                     selectedMenuItem--;
                 }
-                if (currYStickVal[conId] < -0.9f && oldYStickVal[conId] >= -0.9f)
+                if (currYStickVal[conId] < -0.5f && oldYStickVal[conId] >= -0.5f)
                 {
                     selectedMenuItem++;
                 }
@@ -211,21 +232,31 @@ void XRInteraction::applyInput(uint32_t conId)
                 if (selectedMenuItem < 0)
                         selectedMenuItem = numberOfMenuItems;
                 switch (selectedMenuItem) {
-                case 1:
+                case 0:
                     menuBar0Col->rgb = activatedColor;
                     menuBar1Col->rgb = deactivatedColor;
+                    menuBar2Col->rgb = deactivatedColor;
                     changeMovementSpeed(currXStickVal[conId]);
                     menuBar0->width.setValue(100 * movementSpeed);
                     break;
-                case 2:
+                case 1:
                     menuBar0Col->rgb = deactivatedColor;
                     menuBar1Col->rgb = activatedColor;
+                    menuBar2Col->rgb = deactivatedColor;
                     changeRotationSpeed(currXStickVal[conId]);
+                    menuBar1->width.setValue(100 * rotationSpeed);
+                    break;
+                case 2:
+                    menuBar0Col->rgb = deactivatedColor;
+                    menuBar1Col->rgb = deactivatedColor;
+                    menuBar2Col->rgb = activatedColor;
+                    toggleMenuBar2(conId);
                     menuBar1->width.setValue(100 * rotationSpeed);
                     break;
                 default:
                     menuBar0Col->rgb = deactivatedColor;
                     menuBar1Col->rgb = deactivatedColor;
+                    menuBar2Col->rgb = deactivatedColor;
                     break;
                 }
 
@@ -234,6 +265,7 @@ void XRInteraction::applyInput(uint32_t conId)
             {
                 menuBar0Col->rgb = deactivatedColor;
                 menuBar1Col->rgb = deactivatedColor;
+                menuBar2Col->rgb = deactivatedColor;
             }
 
         }
@@ -324,6 +356,7 @@ void XRInteraction::toggleMenuMode()
         ParameterGrp::handle xrGrp = App::GetApplication().GetParameterGroupByPath("User parameter:BaseApp/Preferences/XRViewer");
         xrGrp->SetFloat("MovementSpeed", static_cast<double>(movementSpeed));
         xrGrp->SetFloat("RotationSpeed", static_cast<double>(rotationSpeed));
+        xrGrp->SetInt("ControlScheme", (selectedControlScheme));
     }
 }
 
@@ -367,6 +400,35 @@ void XRInteraction::changeRotationSpeed (float xv)
     }
 }
 
+void XRInteraction::toggleMenuBar2(uint32_t conId)
+{
+    if (currXStickVal[conId] > 0.5f && oldXStickVal[conId] <= 0.5f)
+    {
+        selectedControlScheme++;
+    }
+    if (currXStickVal[conId] < -0.5f && oldXStickVal[conId] >= -0.5f)
+    {
+        selectedControlScheme--;
+    }
+    if (selectedControlScheme > 1)
+        selectedControlScheme = 1;
+    if (selectedControlScheme < 0)
+        selectedControlScheme = 0;
+    updateMenuBar2();
+}
+void XRInteraction::updateMenuBar2()
+{
+    if (selectedControlScheme == 0)
+    {
+        toggleBar2Spacing->translation.setValue(SbVec3f(-35.0f, 0.0f, 0.0f));
+    }
+    if (selectedControlScheme == 1)
+    {
+        toggleBar2Spacing->translation.setValue(SbVec3f(-5.0f, 0.0f, 0.0f));
+    }
+
+}
+
 float XRInteraction::getMovementSpeed()
 {
     return movementSpeed;
@@ -375,6 +437,11 @@ float XRInteraction::getMovementSpeed()
 float XRInteraction::getRotationSpeed()
 {
     return rotationSpeed;
+}
+
+int32_t XRInteraction::getControlScheme()
+{
+    return selectedControlScheme;
 }
 
 XRInteraction::~XRInteraction()
