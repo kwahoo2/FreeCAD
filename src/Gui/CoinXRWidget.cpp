@@ -930,10 +930,10 @@ void CoinXRWidget::updateXrControls()
 
         if (controlScheme == 0)
         {
-            float qx = conRotat[i]->rotation.getValue()[0];
-            float qy = conRotat[i]->rotation.getValue()[1];
-            float qz = conRotat[i]->rotation.getValue()[2];
-            float qw = conRotat[i]->rotation.getValue()[3];
+            float qx = localConTransf->rotation.getValue()[0];
+            float qy = localConTransf->rotation.getValue()[1];
+            float qz = localConTransf->rotation.getValue()[2];
+            float qw = localConTransf->rotation.getValue()[3];
 
             //https://www.euclideanspace.com/maths/geometry/rotations/conversions/quaternionToMatrix/index.htm
             float mat00 = 1-2*qy*qy-2*qz*qz;
@@ -952,15 +952,15 @@ void CoinXRWidget::updateXrControls()
                 float z1 = mat12;
                 float z2 = mat22;
                 step = SbVec3f(-yaxis * z0 * finalMovSpeed, -yaxis * z1 * finalMovSpeed, -yaxis * z2 * finalMovSpeed);
+                transfMod->translation.setValue(step);
+
                 if (!mXRi->isMenuMode()) //do not allow user movement if menumode is active
                 {
-                    worldTransform->translation.setValue(worldTransform->translation.getValue() + step);
+                    worldTransform->combineLeft(transfMod);
                 }
 
             }
             if (i == secondaryConId){
-                transfMod->center.setValue(conpos[i]);
-
                 SbVec3f conXaxis = SbVec3f(mat00, mat10, mat20);
                 SbVec3f conZaxis = SbVec3f(mat02, mat12, mat22);
                 SbRotation conXrot = SbRotation(conXaxis, -yaxis); //stick moves world around one of controller axes
@@ -968,12 +968,13 @@ void CoinXRWidget::updateXrControls()
                 SbRotation padrot = SbRotation();
                 padrot = conXrot * conZrot;
                 padrot.scaleAngle(0.5f * movSpeed * userRotSpeed);
+                transfMod->center.setValue(conpos[i]);
                 transfMod->rotation.setValue(padrot);
                 if (!mXRi->isMenuMode())
                 {
-                    worldTransform->combineRight(transfMod);
+                    worldTransform->combineLeft(transfMod);
                 }
-                rayAxis = conZaxis;
+                //rayAxis = conZaxis;
             }
         }
         if (controlScheme == 1)
@@ -984,7 +985,6 @@ void CoinXRWidget::updateXrControls()
             float qw = hmdrot[3];
 
             float mat02 = 2*qx*qz+2*qy*qw;
-            float mat12 = 2*qy*qz-2*qx*qw;
             float mat22 = 1-2*qx*qx-2*qy*qy;
 
             if (i == primaryConId){
@@ -993,9 +993,11 @@ void CoinXRWidget::updateXrControls()
                 float z0 = mat02;
                 float z2 = mat22;
                 step = step + SbVec3f(xaxis * z2 * finalMovSpeed, 0.0f, -xaxis * z0 * finalMovSpeed);
+                transfMod->center.setValue(hmdpos);
+                transfMod->translation.setValue(step);
                 if (!mXRi->isMenuMode()) //do not allow user movement if menumode is active
                 {
-                    worldTransform->translation.setValue(worldTransform->translation.getValue() + step);
+                    worldTransform->combineLeft(transfMod);
                 }
 
 
@@ -1005,25 +1007,29 @@ void CoinXRWidget::updateXrControls()
                 float z0 = mat02;
                 float z2 = mat22;
                 step = step + SbVec3f(-yaxis * z0 * finalMovSpeed, 0.0f, -yaxis * z2 * finalMovSpeed);
-                if (!mXRi->isMenuMode()) //do not allow user movement if menumode is active
-                {
-                    worldTransform->translation.setValue(worldTransform->translation.getValue() + step);
-                }
                 transfMod->center.setValue(hmdpos);
-                SbVec3f conZaxis = SbVec3f(mat02, mat12, mat22);
+                transfMod->translation.setValue(step);
                 SbRotation worldZrot = SbRotation(SbVec3f(0.0f, 1.0f,  0.0f), -xaxis);
                 worldZrot.scaleAngle(0.5f * movSpeed * userRotSpeed);
                 transfMod->rotation.setValue(worldZrot);
                 if (!mXRi->isMenuMode())
                 {
-                    worldTransform->combineRight(transfMod);
+                    worldTransform->combineLeft(transfMod);
                 }
-                rayAxis = conZaxis;
+
             }
 
         }
+        float gqx = conRotat[secondaryConId]->rotation.getValue()[0];
+        float gqy = conRotat[secondaryConId]->rotation.getValue()[1];
+        float gqz = conRotat[secondaryConId]->rotation.getValue()[2];
+        float gqw = conRotat[secondaryConId]->rotation.getValue()[3];
 
+        float gmat02 = 2*gqx*gqz+2*gqy*gqw;
+        float gmat12 = 2*gqy*gqz-2*gqx*gqw;
+        float gmat22 = 1-2*gqx*gqx-2*gqy*gqy;
 
+        rayAxis = SbVec3f(gmat02, gmat12, gmat22);
 
         //XRInteraction
         mXRi->setControllerState(i, conTrans[i], conRotat[i], currTriggerVal[i], xaxis, yaxis);
