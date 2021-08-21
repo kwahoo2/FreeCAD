@@ -975,7 +975,6 @@ void CoinXRWidget::updateXrControls()
                 {
                     worldTransform->combineLeft(transfMod);
                 }
-                //rayAxis = conZaxis;
             }
         }
         if (controlScheme == 1)
@@ -1044,36 +1043,26 @@ void CoinXRWidget::updateXrControls()
 
 void CoinXRWidget::updateXrGui()
 {
-    const SoPickedPoint *pp;
     //picking ray
     SbVec3f startVec = conTrans[secondaryConId]->translation.getValue();
     SbVec3f endVec = conTrans[secondaryConId]->translation.getValue() - rayAxis;
 
-    //disabled menu tree building, because it creates huge performance issues
-    /*SoSeparator *menuRoot = new SoSeparator; //build a tree just for menu picking
-    menuRoot->addChild(conTrans[primaryConId]);
-    menuRoot->addChild(conRotat[primaryConId]);
-    menuRoot->addChild(camera[0]);
-    menuRoot->addChild(conMenuSep);*/
 
-
-    if (currTriggerVal[secondaryConId] > 0.5f) //do traversal only if trigger pressed, because it is expensive
+    if (currTriggerVal[secondaryConId] >= 0.5f) //do traversal only if trigger pressed, because it is expensive
     {
-        /*pp = mXRi->findPickedObject(menuRoot, vpReg,
+
+        mXRi->findPickedObject(wSep, vpReg,
                                     startVec, endVec, rayAxis,
-                                    nearPlane, farPlane);
-        if (pp)
-        {
-            //place for menu operations
-            mXRi->pickMenuItem(pp, secondaryConId);
-        }
-        else
-        {*/
-        //if menu not hit, check the scene
-            pp = mXRi->findPickedObject(wSep, vpReg,
-                                        startVec, endVec, rayAxis,
-                                        nearPlane, farPlane);
-       // }
+                                    nearPlane, farPlane,
+                                    isNewPickedPoint, pickedPCoords);
+
+    }
+    if (currTriggerVal[secondaryConId] < 0.5f && isNewPickedPoint == true) //teleport when trigger is released
+    {
+        isNewPickedPoint = false;
+        SoTransform *teleportTransf = new SoTransform;
+        teleportTransf->translation.setValue(pickedPCoords - camera[0]->position.getValue() + SbVec3f(0.0f, hmdpos[1], 0.0f));
+        worldTransform->combineRight(teleportTransf);
     }
 
     //prepare and execute commands

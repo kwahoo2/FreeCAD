@@ -161,6 +161,8 @@ class CoinXRWidget  : public QOpenGLWidget , protected QOpenGLFunctions_4_5_Core
     float userRotSpeed = 1.0f;
     float currTriggerVal[hands];
     float oldTriggerVal[hands];
+    bool isNewPickedPoint = false;
+    SbVec3f pickedPCoords = {0.0f, 0.0f, 0.0f};
     QElapsedTimer eTimer; //measure time of frame
     uint32_t primaryConId = 0; //left one one most systemes
     uint32_t secondaryConId = 1;

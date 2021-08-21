@@ -77,8 +77,8 @@ public:
     SoSeparator * getRaySeparator();
     const SoPickedPoint * findPickedObject(SoSeparator *sep, SbViewportRegion vpReg,
                           SbVec3f startVec, SbVec3f endVec, SbVec3f rayAxis,
-                          float nearPlane, float farPlane);
-    void pickMenuItem(const SoPickedPoint *Point, uint32_t conId);
+                          float nearPlane, float farPlane,
+                          bool &isNewPickedPoint, SbVec3f &ppCoords);
 
 
 private:

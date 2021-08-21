@@ -116,7 +116,7 @@ XRInteraction::XRInteraction()
     menuSep->addChild(menuTextLine2);
     SoSeparator * menuBar2Sep =  new SoSeparator;
     menuBar2 = new SoCube();
-    menuBar2->width.setValue(30.0f);
+    menuBar2->width.setValue(32.0f);
     menuBar2->height.setValue(12.0f);
     menuBar2->depth.setValue(1.0f);
     menuBar2Col = new SoBaseColor;
@@ -277,27 +277,6 @@ void XRInteraction::applyInput(uint32_t conId)
 }
 
 
-void XRInteraction::pickMenuItem(const SoPickedPoint *Point, uint32_t conId)
-{
-
-        /*SoNode *tail = Point->getPath()->getTail();
-        if (tail->getNodeId() == menuTextLine0->getNodeId())
-        {
-           // menuTextLine0->string = "[Menu Item 0]";
-            //menuTextLine1->string = "Menu Item 1";
-            Base::Console().Message("Menu Item 0\n");
-        }
-        else if (tail->getNodeId() == menuTextLine1->getNodeId())
-        {
-            //menuTextLine0->string = "Menu Item 0";
-            //menuTextLine1->string = "[Menu Item 1]";
-            Base::Console().Message("Menu Item 1\n");
-        }*/
-
-}
-
-
-
 void XRInteraction::setControllerState(uint32_t id, const SoTranslation *st, const SoRotation *sr, float tv, float xv, float yv)
 {
     conTransVec[id] = st->translation.getValue();
@@ -320,7 +299,8 @@ SoSeparator * XRInteraction::getRaySeparator()
 
 const SoPickedPoint * XRInteraction::findPickedObject(SoSeparator *sep, SbViewportRegion vpReg,
                                      SbVec3f startVec, SbVec3f endVec, SbVec3f rayAxis,
-                                     float nearPlane, float farPlane)
+                                     float nearPlane, float farPlane,
+                                     bool &isNewPickedPoint, SbVec3f &ppCoords)
 {
     //picking ray
     SoRayPickAction conPickAction(vpReg);
@@ -338,8 +318,11 @@ const SoPickedPoint * XRInteraction::findPickedObject(SoSeparator *sep, SbViewpo
         SbVec3f pickedPCoords = pickedPoint->getPoint();
         sphTrans->translation.setValue(pickedPCoords);
         rayVtxs->vertex.set1Value(1, pickedPCoords);
+        ppCoords = pickedPCoords;
+        isNewPickedPoint = true;
 
     }
+
     return pickedPoint;
 }
 
@@ -424,7 +407,7 @@ void XRInteraction::updateMenuBar2()
     }
     if (selectedControlScheme == 1)
     {
-        toggleBar2Spacing->translation.setValue(SbVec3f(-5.0f, 0.0f, 0.0f));
+        toggleBar2Spacing->translation.setValue(SbVec3f(-3.0f, 0.0f, 0.0f));
     }
 
 }
