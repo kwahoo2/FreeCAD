@@ -394,7 +394,8 @@ void CoinXRWidget::prepareXrSession()
     session = instance.createSession(sci);
 
     auto referenceSpaces = session.enumerateReferenceSpaces();
-    space = session.createReferenceSpace(xr::ReferenceSpaceCreateInfo{ xr::ReferenceSpaceType::Local });
+    //space = session.createReferenceSpace(xr::ReferenceSpaceCreateInfo{ xr::ReferenceSpaceType::Local }); //better for seated
+    space = session.createReferenceSpace(xr::ReferenceSpaceCreateInfo{ xr::ReferenceSpaceType::Stage }); //better for room-scale, origin in the middle of the floor
 
     auto swapchainFormats = session.enumerateSwapchainFormats();
     doneCurrent();
@@ -796,7 +797,7 @@ void CoinXRWidget::updateXrViews()
         hmdpos = SbVec3f(viewState.pose.position.x, viewState.pose.position.y, viewState.pose.position.z); //get global position and orientation for both cameras
 
         //Base::Console().Warning("Hmd location: %f %f %f\n",
-          //                      hmdpos[0], hmdpos[1], hmdpos[2]);
+         //                       hmdpos[0], hmdpos[1], hmdpos[2]);
 
         SoTransform *camTransform = new SoTransform();
         camTransform->translation.setValue(worldTransform->translation.getValue()); //transfer values only
