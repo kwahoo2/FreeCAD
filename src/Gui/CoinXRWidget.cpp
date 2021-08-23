@@ -186,7 +186,9 @@ void CoinXRWidget::paintGL()
 
             swapchain.acquireSwapchainImage(xr::SwapchainImageAcquireInfo{}, &swapchainIndex);
             swapchain.waitSwapchainImage(xr::SwapchainImageWaitInfo{ xr::Duration::infinite() });
-
+#if defined XR_USE_PLATFORM_XLIB
+            glXMakeCurrent(xDisplay, glxDrawable, glxContext); //SteamVR bug workaround https://github.com/ValveSoftware/SteamVR-for-Linux/issues/421
+#endif
             glBindFramebuffer(GL_FRAMEBUFFER, fbo.id);
             glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, swapchainImages[swapchainIndex].image, 0);
 
@@ -318,10 +320,14 @@ void CoinXRWidget::prepareXrSession()
 
     uint32_t visualid = 0;
     GLXFBConfig glxFBConfig = nullptr;
-    Display* xDisplay = XOpenDisplay(nullptr);
+    xDisplay = XOpenDisplay(nullptr);
+    //Display* xDisplay = XOpenDisplay(nullptr);
     int xScreen = XDefaultScreen(xDisplay);
-    GLXContext glxContext = glXGetCurrentContext();
-    GLXDrawable glxDrawable = glXGetCurrentDrawable();
+    glxContext = glXGetCurrentContext();
+    //GLXContext glxContext = glXGetCurrentContext();
+    glxDrawable = glXGetCurrentDrawable();
+    //GLXDrawable glxDrawable = glXGetCurrentDrawable();
+
 
     /*To render using OpenGL into a GLX drawable, you must determine the appropriate GLXFBConfig that supports the rendering features your application requires. glXChooseFBConfig returns a GLXFBConfig matching the required attributes or NULL if no match is found. A complete list of GLXFBConfigs supported by a server can be obtained by calling glXGetFBConfigs. Attributes of a particular GLXFBConfig can be queried by calling glXGetFBConfigAttrib. */
     int fbConfigCount = 0;
@@ -412,7 +418,6 @@ void CoinXRWidget::prepareXrSwapchain()
         swapchainCreateInfo.height = m_nRenderHeight;
         swapchain = session.createSwapchain(swapchainCreateInfo);
         swapchainImages = swapchain.enumerateSwapchainImages<xr::SwapchainImageOpenGLKHR>();
-
 
 }
 void CoinXRWidget::prepareXrCompositionLayers()

@@ -99,6 +99,12 @@
 //QOpenGLWidget is a modern replacement for QGLWidget, it performs offscreen rendering
 class CoinXRWidget  : public QOpenGLWidget , protected QOpenGLFunctions_4_5_Core
 {
+#if defined XR_USE_PLATFORM_XLIB
+    Display* xDisplay;
+    GLXContext glxContext;
+    GLXDrawable glxDrawable;
+#endif
+
     SbViewportRegion vpReg;
     SoSceneManager *m_sceneManager;
     SoSeparator *rootScene[2];
