@@ -110,6 +110,7 @@ public:
     Py::Object listCameraTypes(const Py::Tuple&);
     Py::Object getCursorPos(const Py::Tuple&);
     Py::Object getObjectInfo(const Py::Tuple&);
+    Py::Object getObjectInfoPP(const Py::Tuple&);
     Py::Object getObjectsInfo(const Py::Tuple&);
     Py::Object getSize(const Py::Tuple&);
     Py::Object getPointOnFocalPlane(const Py::Tuple&);

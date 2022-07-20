@@ -24,6 +24,14 @@ if (BUILD_VR)
     add_definitions(-DBUILD_VR )
 endif(BUILD_VR)
 
+if (BUILD_OPENVR)
+    add_definitions(-DBUILD_OPENVR )
+endif(BUILD_OPENVR)
+
+if (BUILD_OPENXR)
+    add_definitions(-DBUILD_OPENXR )
+endif(BUILD_OPENXR)
+
 if (BUILD_ADDONMGR)
     add_definitions(-DBUILD_ADDONMGR )
 endif(BUILD_ADDONMGR)
@@ -172,6 +180,32 @@ IF(OCULUS_FOUND)
         ${OCULUS_LIBRARIES}
     )
 ENDIF(OCULUS_FOUND)
+
+IF(OpenVR_FOUND)
+    add_definitions(-DOPENVR_FOUND)
+    include_directories(
+        ${OpenVR_INCLUDE_DIR}
+    )
+    list(APPEND FreeCADGui_LIBS
+        ${OpenVR_LIBRARIES}
+    )
+ENDIF(OpenVR_FOUND)
+
+IF(OpenXR_FOUND)
+    add_definitions(-DOPENXR_FOUND)
+    include_directories(
+        ${OPENXR_OPENXR_INCLUDE_DIR}
+    )
+    list(APPEND FreeCADGui_LIBS
+        ${OPENXR_loader_LIBRARY}
+    )
+    find_package(X11 QUIET)
+    if (X11_FOUND)
+      list(APPEND FreeCADGui_LIBS
+          ${X11_X11_LIB}
+      )
+    endif(X11_FOUND)
+ENDIF(OpenXR_FOUND)
 
 if(FREECAD_USE_SHIBOKEN)
     if (BUILD_QT5)
@@ -829,7 +863,12 @@ SET(View3D_CPP_SRCS
     View3DInventorExamples.cpp
     View3DInventorViewer.cpp
     View3DInventorRiftViewer.cpp
+    View3DInventorOpenVRViewer.cpp
+    View3DInventorXRViewer.cpp
     CoinRiftWidget.cpp
+    CoinOpenVRWidget.cpp
+    CoinXRWidget.cpp
+    XRInteraction.cpp
     View3DPy.cpp
     View3DViewerPy.cpp
     NaviCube.cpp
@@ -849,7 +888,12 @@ SET(View3D_SRCS
     View3DInventorViewer.h
     View3DPy.h
     View3DInventorRiftViewer.h
+    View3DInventorOpenVRViewer.h
+    View3DInventorXRViewer.h
     CoinRiftWidget.h
+    CoinOpenVRWidget.h
+    CoinXRWidget.h
+    XRInteraction.h
     View3DViewerPy.h
     NaviCube.h
 )
