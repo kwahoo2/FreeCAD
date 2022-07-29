@@ -83,9 +83,9 @@ void View3DInventorXRViewer::keyPressEvent(QKeyEvent *event)
     } else if (event->key() == Qt::Key_Down) {
             basePosition += SbVec3f(0,increment,0) ;
     } else if (event->key() == Qt::Key_Left) {
-        rotation2->angle.setValue( rotation2->angle.getValue() + rotIncrement);
+        rotation1->angle.setValue( rotation1->angle.getValue() + rotIncrement);
     } else if (event->key() == Qt::Key_Right) {
-        rotation2->angle.setValue( rotation2->angle.getValue() - rotIncrement);
+        rotation1->angle.setValue( rotation1->angle.getValue() - rotIncrement);
     } else if (event->key() == Qt::Key_A) {
             basePosition += SbVec3f(-increment,0,0) ;
     } else if (event->key() == Qt::Key_D) {
