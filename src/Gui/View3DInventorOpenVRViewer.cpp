@@ -1,6 +1,6 @@
 /***************************************************************************
- *   Copyright (c) 2014 Juergen Riegel <FreeCAD@juergen-riegel.net>		   *
- *   Copyright (c) 2019 Adrian Przekwas <adrian.v.przekwas@gmail.com>	   *
+ *   Copyright (c) 2014 Juergen Riegel <FreeCAD@juergen-riegel.net>	       *
+ *   Copyright (c) 2019 Adrian Przekwas <adrian.v.przekwas@gmail.com>      *
  *                                                                         *
  *   This file is part of the FreeCAD CAx development system.              *
  *                                                                         *
