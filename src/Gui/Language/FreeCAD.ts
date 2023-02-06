@@ -10830,6 +10830,21 @@ underscore, and must not start with a digit.</source>
     </message>
 </context>
 <context>
+    <name>StdCmdViewOpenVR</name>
+    <message>
+        <source>Standard-View</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>FreeCAD-OpenVR</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Extend the FreeCAD 3D Window to a OpenVR headset</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
     <name>StdCmdWhatsThis</name>
     <message>
         <location filename="../CommandStd.cpp" line="307"/>
