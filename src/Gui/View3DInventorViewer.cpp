@@ -145,6 +145,7 @@
 #include "SoFCDirectionalLight.h"
 #include "SoFCSpotLight.h"
 #include "View3DInventorRiftViewer.h"
+#include "View3DInventorXRViewer.h"
 #include "Utilities.h"
 #include "BitmapFactory.h"
 
@@ -4368,6 +4369,26 @@ void View3DInventorViewer::viewVR(void)
     else {
         View3DInventorRiftViewer* riftWin = oculusStart();
         riftWin->setSceneGraph(pcViewProviderRoot);
+    }
+#endif
+}
+
+#if BUILD_OPENXR
+extern View3DInventorXRViewer* xrStart(void);
+extern bool xrUp   (void);
+extern void xrStop (void);
+#endif
+
+void View3DInventorViewer::viewXR(void)
+{
+#if BUILD_OPENXR
+
+    if (xrUp()) {
+        xrStop();
+    }
+    else {
+        View3DInventorXRViewer* xrWin = xrStart();
+        xrWin->setSceneGraph(pcViewProviderRoot);
     }
 #endif
 }

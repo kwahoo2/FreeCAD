@@ -400,6 +400,9 @@ public:
     /// Breaks out a VR window for a Rift
     void viewVR(void);
 
+    /// Breaks out a VR window for an OpenXR headset
+    void viewXR(void);
+
     /**
      * Reposition the current camera so we can see all selected objects.
      *

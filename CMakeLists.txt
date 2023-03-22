@@ -84,6 +84,10 @@ if(BUILD_VR)
     find_package(Rift)
 endif(BUILD_VR)
 
+if(BUILD_OPENXR)
+    find_package(OpenXR)
+endif(BUILD_OPENXR)
+
 SetLibraryVersions()
 SetGlobalCompilerAndLinkerSettings()
 

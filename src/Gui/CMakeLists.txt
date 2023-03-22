@@ -24,6 +24,10 @@ if (BUILD_VR)
     add_definitions(-DBUILD_VR )
 endif(BUILD_VR)
 
+if (BUILD_OPENXR)
+    add_definitions(-DBUILD_OPENXR )
+endif(BUILD_OPENXR)
+
 if (BUILD_ADDONMGR)
     add_definitions(-DBUILD_ADDONMGR )
 endif(BUILD_ADDONMGR)
@@ -172,6 +176,22 @@ IF(OCULUS_FOUND)
         ${OCULUS_LIBRARIES}
     )
 ENDIF(OCULUS_FOUND)
+
+IF(OpenXR_FOUND)
+    add_definitions(-DOPENXR_FOUND)
+    include_directories(
+        ${OPENXR_OPENXR_INCLUDE_DIR}
+    )
+    list(APPEND FreeCADGui_LIBS
+        ${OPENXR_loader_LIBRARY}
+    )
+    find_package(X11 QUIET)
+    if (X11_FOUND)
+      list(APPEND FreeCADGui_LIBS
+          ${X11_X11_LIB}
+      )
+    endif(X11_FOUND)
+ENDIF(OpenXR_FOUND)
 
 if(FREECAD_USE_SHIBOKEN)
     if (BUILD_QT5)
@@ -876,6 +896,9 @@ SET(View3D_CPP_SRCS
     View3DInventorViewer.cpp
     View3DInventorRiftViewer.cpp
     CoinRiftWidget.cpp
+    View3DInventorXRViewer.cpp
+    CoinXRWidget.cpp
+    XRInteraction.cpp
     View3DInventorPyImp.cpp
     View3DViewerPy.cpp
     NaviCube.cpp
@@ -895,6 +918,9 @@ SET(View3D_SRCS
     View3DInventorViewer.h
     View3DInventorRiftViewer.h
     CoinRiftWidget.h
+    View3DInventorXRViewer.h
+    CoinXRWidget.h
+    XRInteraction.h
     View3DViewerPy.h
     NaviCube.h
 )

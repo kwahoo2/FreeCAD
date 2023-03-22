@@ -664,6 +664,10 @@ MenuItem* StdWorkbench::setupMenuBar() const
 #ifdef BUILD_VR
           << "Std_ViewVR"
 #endif
+
+#ifdef BUILD_OPENXR
+          << "Std_ViewXR"
+#endif
           << "Separator" << visu
           << "Std_ToolTipDisable"
           << "Std_ToggleNavigation"
