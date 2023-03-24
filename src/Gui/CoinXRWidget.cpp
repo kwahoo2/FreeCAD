@@ -84,9 +84,7 @@ CoinXRWidget::~CoinXRWidget()
 {
     makeCurrent();
 
-    xr::for_each_side_index([&](uint32_t eyeIndex) {
-        rootScene[eyeIndex]->unref();
-    });
+    rootScene->unref();
 
     if (fbo.id != 0) {
         glDeleteFramebuffers(1, &fbo.id);
@@ -197,7 +195,7 @@ void CoinXRWidget::paintGL()
             glScissor(0, 0, static_cast<int32_t>(m_nRenderWidth) / 2, static_cast<int32_t>(m_nRenderHeight));
             vpReg.setViewportPixels(0, 0, static_cast<short>(m_nRenderWidth) / 2, static_cast<short>(m_nRenderHeight));
             m_sceneManager->setViewportRegion(vpReg);
-            m_sceneManager->setSceneGraph(rootScene[0]);
+            setCamGeo(0); //copies first eye geometry to camera
             glEnable(GL_CULL_FACE);
             glEnable(GL_DEPTH_TEST);
             m_sceneManager->render();
@@ -208,7 +206,7 @@ void CoinXRWidget::paintGL()
             glScissor(static_cast<int32_t>(m_nRenderWidth) / 2, 0, static_cast<int32_t>(m_nRenderWidth) / 2, static_cast<int32_t>(m_nRenderHeight));
             vpReg.setViewportPixels(static_cast<short>(m_nRenderWidth) / 2, 0, static_cast<short>(m_nRenderWidth) / 2, static_cast<short>(m_nRenderHeight));
             m_sceneManager->setViewportRegion(vpReg);
-            m_sceneManager->setSceneGraph(rootScene[1]);
+            setCamGeo(1);
             glEnable(GL_CULL_FACE);
             glEnable(GL_DEPTH_TEST);
             m_sceneManager->render();
@@ -688,50 +686,54 @@ void CoinXRWidget::prepareScene()
 
     conMenuSep = new SoSeparator;
 
+    rootScene = new SoSeparator;
+    cGrp = new SoGroup();
+    sGrp = new SoGroup();
+    rootScene->ref();
+
+    camera = new SoFrustumCamera();
+    camera->nearDistance.setValue(nearPlane);
+    camera->farDistance.setValue(farPlane);
+    camera->focalDistance.setValue(5.0f);
+    camera->viewportMapping.setValue(SoCamera::LEAVE_ALONE);
+
+    rootScene->addChild(cGrp);
+    cGrp->addChild(camera);
+
+    rootScene->addChild(sGrp);
+    sGrp->addChild(light);
+    sGrp->addChild(light2);
+
+    //controllers
+    con0Sep = new SoSeparator();
+    con1Sep = new SoSeparator();
+    sGrp->addChild(con0Sep);
+    con0Sep->addChild(conTrans[primaryConId]);
+    con0Sep->addChild(conRotat[primaryConId]);
+    con0Sep->addChild(conGizmo[primaryConId]);
+    con0Sep->addChild(conMenuSep); //menu follows controller placement
+    con0Sep->addChild(stickRotat[primaryConId]);
+    con0Sep->addChild(conStick[primaryConId]);
+    sGrp->addChild(con1Sep);
+    con1Sep->addChild(conTrans[secondaryConId]);
+    con1Sep->addChild(conRotat[secondaryConId]);
+    con1Sep->addChild(conGizmo[secondaryConId]);
+    con1Sep->addChild(stickRotat[secondaryConId]);
+    con1Sep->addChild(conStick[secondaryConId]);
+
+    //add ray for picking objects
+    sGrp->addChild(mXRi->getRaySeparator());
+
+    //add scene
+    sGrp->addChild(wSep);
+
     xr::for_each_side_index([&](uint32_t eyeIndex) {
-        rootScene[eyeIndex] = new SoSeparator;
-        cGrp[eyeIndex] = new SoGroup();
-        sGrp[eyeIndex] = new SoGroup();
-        rootScene[eyeIndex]->ref();
-
-        camera[eyeIndex] = new SoFrustumCamera();
-        camera[eyeIndex]->nearDistance.setValue(nearPlane);
-        camera[eyeIndex]->farDistance.setValue(farPlane);
-        camera[eyeIndex]->focalDistance.setValue(5.0f);
-        camera[eyeIndex]->viewportMapping.setValue(SoCamera::LEAVE_ALONE);
-
-        rootScene[eyeIndex]->addChild(cGrp[eyeIndex]);
-        cGrp[eyeIndex]->addChild(camera[eyeIndex]);
-
-        rootScene[eyeIndex]->addChild(sGrp[eyeIndex]);
-        sGrp[eyeIndex]->addChild(light);
-        sGrp[eyeIndex]->addChild(light2);
-
-        //controllers
-        con0Sep[eyeIndex] = new SoSeparator();
-        con1Sep[eyeIndex] = new SoSeparator();
-        sGrp[eyeIndex]->addChild(con0Sep[eyeIndex]);
-        con0Sep[eyeIndex]->addChild(conTrans[primaryConId]);
-        con0Sep[eyeIndex]->addChild(conRotat[primaryConId]);
-        con0Sep[eyeIndex]->addChild(conGizmo[primaryConId]);
-        con0Sep[eyeIndex]->addChild(conMenuSep); //menu follows controller placement
-        con0Sep[eyeIndex]->addChild(stickRotat[primaryConId]);
-        con0Sep[eyeIndex]->addChild(conStick[primaryConId]);
-        sGrp[eyeIndex]->addChild(con1Sep[eyeIndex]);
-        con1Sep[eyeIndex]->addChild(conTrans[secondaryConId]);
-        con1Sep[eyeIndex]->addChild(conRotat[secondaryConId]);
-        con1Sep[eyeIndex]->addChild(conGizmo[secondaryConId]);
-        con1Sep[eyeIndex]->addChild(stickRotat[secondaryConId]);
-        con1Sep[eyeIndex]->addChild(conStick[secondaryConId]);
-
-        //add ray for picking objects for each eye
-        sGrp[eyeIndex]->addChild(mXRi->getRaySeparator());
-
-        //add scene
-        sGrp[eyeIndex]->addChild(wSep);
+    //eye dependant things
 
     });
     conMenuSep->addChild(mXRi->getMenuSeparator());//Menu container modified in XRInteraction
+
+    m_sceneManager->setSceneGraph(rootScene);
 }
 
 void CoinXRWidget::pollXrEvents()
@@ -815,20 +817,20 @@ void CoinXRWidget::updateXrViews()
 
         camTransform->combineLeft(hmdTransf); //combine real hmd and arificial (stick-driven) camera movement
 
-        camera[eyeIndex]->orientation.setValue(camTransform->rotation.getValue());
-        camera[eyeIndex]->position.setValue(camTransform->translation.getValue());
+        camgeo[eyeIndex].orientation = camTransform->rotation.getValue();
+        camgeo[eyeIndex].position = camTransform->translation.getValue();
 
         float pfLeft = tan(viewState.fov.angleLeft);
         float pfRight = tan(viewState.fov.angleRight);
         float pfTop = tan(viewState.fov.angleUp);
         float pfBottom = tan(viewState.fov.angleDown);
-        camera[eyeIndex]->aspectRatio.setValue((pfTop - pfBottom)/(pfRight - pfLeft));
-        camera[eyeIndex]->nearDistance.setValue(nearPlane);
-        camera[eyeIndex]->farDistance.setValue(farPlane);
-        camera[eyeIndex]->left.setValue(nearPlane * pfLeft);
-        camera[eyeIndex]->right.setValue(nearPlane * pfRight);
-        camera[eyeIndex]->top.setValue(nearPlane * pfTop);
-        camera[eyeIndex]->bottom.setValue(nearPlane * pfBottom);
+        camgeo[eyeIndex].aspectRatio = (pfTop - pfBottom)/(pfRight - pfLeft);
+        camgeo[eyeIndex].nearDistance = nearPlane;
+        camgeo[eyeIndex].farDistance = farPlane;
+        camgeo[eyeIndex].left = nearPlane * pfLeft;
+        camgeo[eyeIndex].right = nearPlane * pfRight;
+        camgeo[eyeIndex].top = nearPlane * pfTop;
+        camgeo[eyeIndex].bottom = nearPlane * pfBottom;
 
     });
 }
@@ -1066,7 +1068,7 @@ void CoinXRWidget::updateXrGui()
     {
         isNewPickedPoint = false;
         SoTransform *teleportTransf = new SoTransform;
-        teleportTransf->translation.setValue(pickedPCoords - camera[0]->position.getValue() + SbVec3f(0.0f, hmdpos[1], 0.0f));
+        teleportTransf->translation.setValue(pickedPCoords - camgeo[0].position + SbVec3f(0.0f, hmdpos[1], 0.0f));
         worldTransform->combineRight(teleportTransf);
     }
 
@@ -1091,6 +1093,19 @@ void CoinXRWidget::endXrFrame()
         frameEndInfo.layers = layersPointers.data();
     }
     session.endFrame(frameEndInfo);
+}
+
+void CoinXRWidget::setCamGeo(int idx)
+{
+    camera->orientation = camgeo[idx].orientation;
+    camera->position = camgeo[idx].position;
+    camera->aspectRatio = camgeo[idx].aspectRatio;;
+    camera->nearDistance = camgeo[idx].nearDistance;
+    camera->farDistance = camgeo[idx].farDistance;
+    camera->left = camgeo[idx].left;
+    camera->right = camgeo[idx].right;
+    camera->top = camgeo[idx].top;
+    camera->bottom = camgeo[idx].bottom;
 }
 
 void CoinXRWidget::quitRendering()

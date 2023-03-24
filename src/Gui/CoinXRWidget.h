@@ -96,6 +96,19 @@
 
 #include "XRInteraction.h"
 
+
+struct cameraGeometry{
+    SbRotation orientation;
+    SbVec3f position;
+    float aspectRatio;
+    float nearDistance;
+    float farDistance;
+    float left;
+    float right;
+    float top;
+    float bottom;
+};
+
 //QOpenGLWidget is a modern replacement for QGLWidget, it performs offscreen rendering
 class CoinXRWidget  : public QOpenGLWidget , protected QOpenGLFunctions_4_5_Core
 {
@@ -105,17 +118,19 @@ class CoinXRWidget  : public QOpenGLWidget , protected QOpenGLFunctions_4_5_Core
     GLXDrawable glxDrawable;
 #endif
 
+    cameraGeometry camgeo[2];
+
     SbViewportRegion vpReg;
     SoSceneManager *m_sceneManager;
-    SoSeparator *rootScene[2];
-    SoFrustumCamera *camera[2];
+    SoSeparator *rootScene;
+    SoFrustumCamera *camera;
     SoNode *scene;
     SoSeparator *wSep;
-    SoTranslation *camTrans[2];
-    SoGroup *cGrp[2];
-    SoGroup *sGrp[2];
-    SoSeparator *con0Sep[2];
-    SoSeparator *con1Sep[2];
+    SoTranslation *camTrans;
+    SoGroup *cGrp;
+    SoGroup *sGrp;
+    SoSeparator *con0Sep;
+    SoSeparator *con1Sep;
     SoCube *conGizmo[2];
     SoTranslation *conTrans[2];
     SoRotation *conRotat[2];
@@ -177,6 +192,7 @@ class CoinXRWidget  : public QOpenGLWidget , protected QOpenGLFunctions_4_5_Core
 
     std::vector<xr::CompositionLayerBaseHeader*> layersPointers;
 
+    void setCamGeo(int idx);
     void prepareXrInstance();
     void prepareXrSystem();
     void prepareXrSession();
