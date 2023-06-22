@@ -1,3 +1,18 @@
+## FreeCAD-XR fork
+
+This is a FreeCAD fork including a virtual reality (VR) viewer. It should run with SteamVR (Vive, Index - both Windows and Linux), Oculus (XR), Windows Mixed Reality.
+
+Watch the video of this fork running on Valve Index and Linux:
+
+[![VR viewer in FreeCAD](https://img.youtube.com/vi/INSbbiQu3-s/0.jpg)](https://www.youtube.com/watch?v=INSbbiQu3-s)
+
+Learn more about the development:
+
+[FreeCAD Forum discussion](https://forum.freecad.org/viewtopic.php?p=336241)
+
+## Original README:
+
+
 ![Logo](https://github.com/realthunder/FreeCADMakeImage/raw/master/conda/branding/asm3/icons/hicolor/64x64/apps/freecad_link.png)
 
 This is the Link branch FreeCAD, with lots of new features and enhancement.
