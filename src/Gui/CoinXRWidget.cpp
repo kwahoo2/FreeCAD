@@ -484,8 +484,8 @@ void CoinXRWidget::prepareControls()
 
 
     xr::Path posePaths[hands];
-    dispatch.xrStringToPath(instance, "/user/hand/left/input/grip/pose", posePaths[0].put());
-    dispatch.xrStringToPath(instance, "/user/hand/right/input/grip/pose", posePaths[1].put());
+    dispatch.xrStringToPath(instance, "/user/hand/left/input/aim/pose", posePaths[0].put());
+    dispatch.xrStringToPath(instance, "/user/hand/right/input/aim/pose", posePaths[1].put());
 
     xr::Path triggerValuePath[hands];
     dispatch.xrStringToPath(instance, "/user/hand/left/input/trigger/value", triggerValuePath[0].put());
