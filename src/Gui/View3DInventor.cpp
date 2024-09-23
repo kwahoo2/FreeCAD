@@ -491,13 +491,15 @@ bool View3DInventor::onHasMsg(const char* pMsg) const
 #else
         return false;
 #endif
-    else if(strcmp("ViewOpenVR",pMsg) == 0)
+    }
+    else if(strcmp("ViewOpenVR",pMsg) == 0) {
 #ifdef BUILD_OPENVR
         return true;
 #else
         return false;
 #endif
-    else if(strcmp("ViewXR",pMsg) == 0)
+    }
+    else if(strcmp("ViewXR",pMsg) == 0) {
 #ifdef BUILD_OPENXR
         return true;
 #else
