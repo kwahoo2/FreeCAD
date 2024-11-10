@@ -70,6 +70,7 @@
 #include <App/Document.h>
 #include <App/DocumentObject.h>
 #include <App/DocumentObjectGroup.h>
+#include <App/SafeMode.h>
 #include <Base/ConsoleObserver.h>
 #include <Base/Parameter.h>
 #include <Base/Exception.h>
@@ -91,6 +92,7 @@
 #include "DownloadManager.h"
 #include "FileDialog.h"
 #include "MenuManager.h"
+#include "ModuleIO.h"
 #include "NotificationArea.h"
 #include "OverlayManager.h"
 #include "ProgressBar.h"
@@ -397,7 +399,8 @@ MainWindow::MainWindow(QWidget * parent, Qt::WindowFlags f)
     // after opening project and prevent issues with double initialization of the window
     //
     // https://stackoverflow.com/questions/76026196/how-to-force-qt-to-use-the-opengl-window-type
-    new QOpenGLWidget(this);
+    auto _OpenGLWidget = new QOpenGLWidget(this);
+    _OpenGLWidget->move(QPoint(-100,-100));
 #endif
 
     // global access
@@ -449,7 +452,9 @@ MainWindow::MainWindow(QWidget * parent, Qt::WindowFlags f)
     d->mdiArea->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
     d->mdiArea->setHorizontalScrollBarPolicy(Qt::ScrollBarAsNeeded);
     d->mdiArea->setOption(QMdiArea::DontMaximizeSubWindowOnActivation, false);
+#ifndef HAS_QTBUG_129596
     d->mdiArea->setActivationOrder(QMdiArea::ActivationHistoryOrder);
+#endif
     d->mdiArea->setBackground(QBrush(QColor(160,160,160)));
     setCentralWidget(d->mdiArea);
 
@@ -1650,6 +1655,22 @@ void MainWindow::delayedStartup()
     if (hGrp->GetBool("RecoveryEnabled", true)) {
         Application::Instance->checkForPreviousCrashes();
     }
+
+    if (SafeMode::SafeModeEnabled()) {
+        auto safeModePopup = QMessageBox(
+            QMessageBox::Information,
+            tr("Safe mode enabled"),
+            tr("FreeCAD is now running in safe mode."),
+            QMessageBox::Ok
+        );
+        safeModePopup.setInformativeText(
+            tr(
+                "Safe mode temporarily disables your configurations and addons."
+                " Restart the application to exit safe mode."
+            )
+        );
+        safeModePopup.exec();
+    }
 }
 
 void MainWindow::appendRecentFile(const QString& filename)
@@ -1917,18 +1938,13 @@ void MainWindow::startSplasher()
             GetGroup("BaseApp")->GetGroup("Preferences")->GetGroup("General");
         // first search for an external image file
         if (hGrp->GetBool("ShowSplasher", true)) {
-            const auto isWayland = qGuiApp->platformName() == QLatin1String("wayland");
-            const auto flags = isWayland ? Qt::WindowFlags() : Qt::WindowStaysOnTopHint | Qt::X11BypassWindowManagerHint;
-            d->splashscreen = new SplashScreen(this->splashImage(), flags);
+            d->splashscreen = new SplashScreen(this->splashImage());
 
             if (!hGrp->GetBool("ShowSplasherMessages", false)) {
                 d->splashscreen->setShowMessages(false);
             }
 
             d->splashscreen->show();
-            if (!isWayland) {
-                QApplication::processEvents();
-            }
         }
         else {
             d->splashscreen = nullptr;
@@ -1938,24 +1954,11 @@ void MainWindow::startSplasher()
 
 void MainWindow::stopSplasher()
 {
-    const auto isWayland = qGuiApp->platformName() == QLatin1String("wayland");
-    if (isWayland) {
-        if (d->splashscreen) {
-            d->splashscreen->finish(this);
-            d->splashscreen->deleteLater();
-            d->splashscreen = nullptr;
-        }
-        return;
+    if (d->splashscreen) {
+        d->splashscreen->finish(this);
+        delete d->splashscreen;
+        d->splashscreen = nullptr;
     }
-
-    QApplication::processEvents();
-    QTimer::singleShot(3000, this, [this]() {
-        if (d->splashscreen) {
-            d->splashscreen->finish(this);
-            d->splashscreen->deleteLater();
-            d->splashscreen = nullptr;
-        }
-    });
 }
 
 QPixmap MainWindow::aboutImage() const
@@ -2426,12 +2429,7 @@ void MainWindow::loadUrls(App::Document* doc, const QList<QUrl>& urls)
     }
 
     QByteArray docName = doc ? QByteArray(doc->getName()) : qApp->translate("StdCmdNew","Unnamed").toUtf8();
-    SelectModule::Dict dict = SelectModule::importHandler(files);
-    // load the files with the associated modules
-    for (SelectModule::Dict::iterator it = dict.begin(); it != dict.end(); ++it) {
-        // if the passed document name doesn't exist the module should create it, if needed
-        Application::Instance->importFrom(it.key().toUtf8(), docName, it.value().toLatin1());
-    }
+    ModuleIO::importFiles(files, docName);
 }
 
 void MainWindow::changeEvent(QEvent *e)
@@ -2627,6 +2625,10 @@ void MainWindow::setWindowTitle(const QString& string)
     }
     else {
         title = appname;
+    }
+
+    if (SafeMode::SafeModeEnabled()) {
+        title = QString::fromUtf8("%1 (%2)").arg(title, tr("Safe Mode"));
     }
 
     if (!string.isEmpty()) {
