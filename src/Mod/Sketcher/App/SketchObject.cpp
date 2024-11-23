@@ -265,7 +265,7 @@ App::DocumentObjectExecReturn* SketchObject::execute()
         rebuildExternalGeometry();
         Constraints.acceptGeometry(getCompleteGeometry());
     }
-    catch (const Base::Exception& e) {
+    catch (const Base::Exception&) {
         // 9/16/24: We used to clear the constraints here, but we no longer want to do that
         // as missing reference geometry is not considered an error while we sort out sketcher UI.
         // Base::Console().Error("%s\nClear constraints to external geometry\n", e.what());
@@ -10071,8 +10071,9 @@ void SketchObject::onChanged(const App::Property* prop)
                         }
                         else {
                             Base::Console().Error(
-                                "SketchObject::onChanged(): Unmanaged change of Geometry Property "
-                                "results in invalid constraint indices\n");
+                                this->getFullLabel() + " SketchObject::onChanged ",
+                                QT_TRANSLATE_NOOP("Notifications", "Unmanaged change of Geometry Property "
+                                "results in invalid constraint indices") "\n");
                         }
                         Base::StateLocker lock(internaltransaction, true);
                         setUpSketch();
@@ -10101,8 +10102,9 @@ void SketchObject::onChanged(const App::Property* prop)
                         }
                         else {
                             Base::Console().Error(
-                                "SketchObject::onChanged(): Unmanaged change of Constraint "
-                                "Property results in invalid constraint indices\n");
+                                this->getFullLabel() + " SketchObject::onChanged ",
+                                QT_TRANSLATE_NOOP("Notifications", "Unmanaged change of Constraint "
+                                "Property results in invalid constraint indices") "\n");
                         }
                         Base::StateLocker lock(internaltransaction, true);
                         setUpSketch();
