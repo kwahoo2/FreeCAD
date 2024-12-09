@@ -53,7 +53,7 @@ const bool COMMIT = false;
 DlgAddPropertyVarSet::DlgAddPropertyVarSet(QWidget* parent,
                                            ViewProviderVarSet* viewProvider)
     : QDialog(parent),
-      varSet(dynamic_cast<App::VarSet*>(viewProvider->getObject())),
+      varSet(viewProvider->getObject<App::VarSet>()),
       ui(new Ui_DlgAddPropertyVarSet),
       comboBoxGroup(this),
       completerType(this),
@@ -245,7 +245,8 @@ static PropertyEditor::PropertyItem *createPropertyItem(App::Property *prop)
     return item;
 }
 
-void DlgAddPropertyVarSet::addEditor(PropertyEditor::PropertyItem* propertyItem, std::string& type)
+void DlgAddPropertyVarSet::addEditor(PropertyEditor::PropertyItem* propertyItem,
+                                     [[maybe_unused]]std::string& type)
 {
     editor.reset(propertyItem->createEditor(this, [this]() {
         this->valueChanged();
