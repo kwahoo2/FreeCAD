@@ -141,6 +141,9 @@ JointParallelForbidden = [
     "Perpendicular",
 ]
 
+JointUsingPreservePosition = [
+    "Fixed",
+]
 
 def solveIfAllowed(assembly, storePrev=False):
     if assembly.Type == "Assembly" and Preferences.preferences().GetBool(
@@ -406,6 +409,17 @@ class Joint:
                     "This is the maximum limit for the angle between both coordinate systems (between their X axis).",
                 ),
             )
+        if not hasattr(joint, "PreservePos"):
+            joint.addProperty(
+                "App::PropertyBool",
+                "PreservePos",
+                "Joint",
+                QT_TRANSLATE_NOOP(
+                    "App::Property",
+                    "This determines whether the parts should remain in the same relative position after the joint is applied.",
+                ),
+            )
+
 
     def migrationScript(self, joint):
         if hasattr(joint, "Object1") and isinstance(joint.Object1, str):
@@ -612,6 +626,9 @@ class Joint:
         if len(refs) >= 2:
             joint.Reference2 = refs[1]
             joint.Placement2 = self.findPlacement(joint, joint.Reference2, 1)
+
+            self.setPreservedPosOffsets(joint)
+
             if joint.JointType in JointUsingPreSolve:
                 self.preSolve(joint)
             elif joint.JointType in JointParallelForbidden:
@@ -635,6 +652,13 @@ class Joint:
 
         if not joint.Detach2:
             joint.Placement2 = self.findPlacement(joint, joint.Reference2, 1)
+
+    def setPreservedPosOffsets(self, joint):
+        if joint.JointType in JointUsingPreservePosition and joint.PreservePos:
+            jpl1 = UtilsAssembly.getJcsGlobalPlc(joint.Placement1, joint.Reference1)
+            jpl2 = UtilsAssembly.getJcsGlobalPlc(joint.Placement2, joint.Reference2)
+            joint.Offset2 = jpl2.inverse() * jpl1
+            joint.Offset1 = App.Placement()
 
     """
     So here we want to find a placement that corresponds to a local coordinate system that would be placed at the selected vertex.
@@ -841,6 +865,8 @@ class ViewProviderJoint:
                 self.switch_JCS2.set_marker_placement(plc, joint.Reference2)
             else:
                 self.switch_JCS2.whichChild = coin.SO_SWITCH_NONE
+        if prop == "Placement":
+            print("plac changed")
 
     def showPreviewJCS(self, visible, placement=None, ref=None):
         if visible:
@@ -1272,6 +1298,8 @@ class TaskAssemblyCreateJoint(QtCore.QObject):
 
         self.jForm.advancedOffsetCheckbox.stateChanged.connect(self.advancedOffsetToggled)
 
+        self.jForm.preservePosCheckbox.stateChanged.connect(self.preservePosToggled)
+
         self.jForm.offset1Button.clicked.connect(self.onOffset1Clicked)
         self.jForm.offset2Button.clicked.connect(self.onOffset2Clicked)
         self.jForm.PushButtonReverse.clicked.connect(self.onReverseClicked)
@@ -1465,6 +1493,9 @@ class TaskAssemblyCreateJoint(QtCore.QObject):
         else:
             self.jForm.jointType.setCurrentIndex(JointTypes.index("Belt"))
 
+    def preservePosToggled(self, val):
+        self.joint.PreservePos = val
+
     def adaptUi(self):
         jType = self.jType
 
@@ -1490,6 +1521,11 @@ class TaskAssemblyCreateJoint(QtCore.QObject):
         self.jForm.distanceLabel2.setVisible(needDistance2)
         self.jForm.distanceSpinbox2.setVisible(needDistance2)
         self.jForm.reverseRotCheckbox.setVisible(needDistance2)
+
+        if jType in JointUsingPreservePosition:
+            self.jForm.preservePosCheckbox.setVisible(True)
+        else:
+            self.jForm.preservePosCheckbox.setVisible(False)
 
         if jType in JointNoNegativeDistance:
             # Setting minimum to 0.01 to prevent 0 and negative values
@@ -1609,6 +1645,8 @@ class TaskAssemblyCreateJoint(QtCore.QObject):
         self.jForm.limitLenMaxSpinbox.setProperty("rawValue", self.joint.LengthMax)
         self.jForm.limitRotMinSpinbox.setProperty("rawValue", self.joint.AngleMin)
         self.jForm.limitRotMaxSpinbox.setProperty("rawValue", self.joint.AngleMax)
+
+        self.jForm.preservePosCheckbox.setChecked(self.joint.PreservePos)
 
         self.jForm.jointType.setCurrentIndex(JointTypes.index(self.joint.JointType))
         self.updateJointList()
